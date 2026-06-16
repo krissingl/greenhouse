@@ -18,11 +18,11 @@ Draft
 
 Greenhouse is a local-first personal enrichment application designed to help users manage a backlog of interests, hobbies, projects, and experiences they wish to pursue.
 
-The application helps users identify barriers to participation ahead of time, organize activities based on their real-world requirements, and receive recommendations based on their current circumstances.
+The application helps users identify barriers to participation ahead of time, organize interests based on their real-world requirements, and receive recommendations based on their current circumstances.
 
 Greenhouse is not intended to increase productivity, optimize performance, or encourage goal completion.
 
-Its purpose is to help users spend their limited free time on activities that are accessible, meaningful, and fulfilling.
+Its purpose is to help users spend their limited free time on interests that are accessible, meaningful, and fulfilling.
 
 ---
 
@@ -40,17 +40,19 @@ Examples include:
 - Professional certifications
 - Creative pursuits
 
-When free time becomes available, selecting an activity often becomes overwhelming.
+When free time becomes available, selecting an interest often becomes overwhelming.
 
-Even after selecting an activity, hidden barriers frequently prevent immediate participation:
+Even after selecting an interest, hidden barriers frequently prevent immediate participation:
 
 - Required supplies are unavailable.
 - Necessary stores are closed.
-- The activity requires more time than is currently available.
-- The activity can only be performed in a specific location.
-- The activity requires more energy or focus than the user currently has.
+- The interest requires more time than is currently available.
+- The interest can only be performed in a specific location.
+- The interest requires more energy or focus than the user currently has.
 
-The effort required to determine what is possible often exceeds the motivation available to begin.
+The effort required to identify barriers, prepare an interest, and determine what is possible often exceeds the motivation available to begin.
+
+Users frequently find themselves repeating the same planning and preparation process each time they return to an interest. The effort required to identify barriers can become a barrier itself.
 
 As a result, the user frequently spends free time deciding what to do rather than doing something they genuinely enjoy.
 
@@ -62,7 +64,7 @@ Greenhouse helps users answer a simple question:
 
 > What would I enjoy doing right now that I can actually start right now?
 
-The application should reduce decision fatigue, surface realistic options, and help users better understand which activities create lasting fulfillment.
+The application should reduce decision fatigue, surface realistic options, and help users better understand which interests create lasting fulfillment.
 
 ---
 
@@ -74,7 +76,7 @@ The product is initially designed for a single user with:
 
 - Many hobbies and interests
 - Limited free time
-- Frequent decision paralysis when selecting activities
+- Frequent decision paralysis when selecting interests
 - A desire to better understand what creates personal fulfillment
 
 ## Future Users
@@ -95,11 +97,23 @@ The application does not exist to maximize output, efficiency, achievement, or m
 
 ## Curiosity Without Obligation
 
-Adding an activity should feel like planting a seed, not creating a commitment.
+Adding an interest should feel like planting a seed, not creating a commitment.
 
-Activities are opportunities, not obligations.
+Interests are opportunities, not obligations.
 
-Users should never feel guilty about unfinished activities.
+Users should never feel guilty about unfinished interests.
+
+---
+
+## Minimize Capture Friction
+
+Users should be able to capture an interest immediately when inspiration strikes.
+
+Only a title is required.
+
+All additional information should be optional and may be added later.
+
+Capturing an interest should never require significant planning, categorization, or data entry.
 
 ---
 
@@ -131,19 +145,19 @@ Insights should focus on fulfillment and personal patterns rather than performan
 
 ## Goal 1
 
-Maintain a structured backlog of activities, hobbies, projects, and interests.
+Maintain a structured backlog of interests the user wishes to explore, pursue, or complete.
 
 ---
 
 ## Goal 2
 
-Capture barriers, requirements, and constraints associated with activities.
+Capture barriers, requirements, and constraints associated with interests.
 
 ---
 
 ## Goal 3
 
-Recommend activities based on current circumstances.
+Recommend interests based on current circumstances.
 
 ---
 
@@ -155,7 +169,7 @@ Track personal fulfillment and satisfaction after participation.
 
 ## Goal 5
 
-Provide meaningful insights into which activities consistently create positive experiences.
+Provide meaningful insights into which interests consistently create positive experiences.
 
 ---
 
@@ -204,7 +218,7 @@ The application will not include:
 The application will not include:
 
 - Public profiles
-- Activity feeds
+- Interest feeds
 - Social sharing
 - Competition
 - Community features
@@ -219,17 +233,17 @@ The application will not function as a calendar or scheduling tool.
 
 # Core Features
 
-## Activity Backlog
+## Interest Backlog
 
-Users can create activities they wish to pursue.
+Users can create interests they wish to pursue.
 
-Only an activity title is required.
+Only an interest title is required.
 
 All additional information is optional and may be added later.
 
 ---
 
-## Guided Activity Setup
+## Guided Interest Setup
 
 The application will guide users through identifying barriers and requirements.
 
@@ -249,9 +263,9 @@ All responses must remain editable.
 
 ---
 
-## Activity Types
+## Interest Types
 
-Activities may be categorized as:
+Interests may be categorized as:
 
 ### One-Time Project
 
@@ -274,13 +288,13 @@ Example:
 - Learn violin
 - Learn painting
 
-Long-term activities may contain smaller sessions or sub-activities.
+Long-term interests may contain smaller sessions or milestones.
 
 ---
 
 ## Recommendation Engine
 
-Users can request activity recommendations based on current circumstances.
+Users can request interest recommendations based on current circumstances.
 
 Examples:
 
@@ -290,19 +304,19 @@ Examples:
 - I am by myself.
 - I want something creative.
 
-The system should identify activities that are currently achievable.
+The system should identify interests that are currently achievable.
 
 ---
 
-## In Progress Activities
+## In Progress Interests
 
-The dashboard should prominently display activities currently being pursued.
+The dashboard should prominently display interests currently being pursued.
 
 ---
 
 ## Reflection Tracking
 
-Users may record impressions after participating in an activity.
+Users may record impressions after participating in an interest.
 
 Potential reflection inputs include:
 
@@ -331,32 +345,32 @@ The application should allow users to record these ongoing positive impacts.
 
 The application should surface patterns including:
 
-- Highest fulfillment activities
+- Highest fulfillment interests
 - Fulfillment by category
 - Fulfillment trends over time
-- Activities with strong long-term impact
+- Interests with strong long-term impact
 
 Analytics should remain descriptive rather than prescriptive.
 
 ---
 
-# Activity States
+# Interest States
 
 ## Backlog
 
-Activities the user wishes to pursue.
+Interests the user wishes to pursue.
 
 ---
 
 ## In Progress
 
-Activities currently being explored or worked on.
+Interests currently being explored or worked on.
 
 ---
 
 ## Complete
 
-Activities the user considers complete.
+Interests the user considers complete.
 
 Completion is determined by the user.
 
@@ -366,14 +380,14 @@ Completion is determined by the user.
 
 The dashboard should prioritize:
 
-1. Recommend an Activity
-2. Create New Activity
-3. View In Progress Activities
+1. Recommend an Interest
+2. Create New Interest
+3. View In Progress Interests
 
 Secondary information may include:
 
 - Backlog overview
-- Completed activities
+- Completed interests
 - Reflection summaries
 - Analytics entry points
 
@@ -385,13 +399,13 @@ The product is successful if it helps users:
 
 - Spend less time deciding what to do.
 - Spend less time discovering barriers.
-- Spend more time engaging with meaningful activities.
-- Better understand which activities create fulfillment.
+- Spend more time engaging with meaningful interests.
+- Better understand which interests create fulfillment.
 - Rediscover interests that would otherwise be forgotten.
 
 The application is not measured by:
 
-- Number of completed activities
+- Number of completed interests
 - Productivity gains
 - Goal completion percentages
 - User streaks
@@ -416,7 +430,7 @@ Cloud services are not required for v1.
 When evaluating a feature, ask:
 
 1. Does this reduce activation energy?
-2. Does this help users engage with activities they genuinely want to do?
+2. Does this help users engage with interests they genuinely want to do?
 3. Does this improve self-understanding?
 4. Could this introduce guilt, obligation, or performance pressure?
 5. Would this make Greenhouse feel more like a productivity app?
