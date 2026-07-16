@@ -12,8 +12,6 @@ Greenhouse is not intended to increase productivity, optimize performance, or en
 
 Its purpose is to help users spend their limited free time on activities that are accessible, meaningful, and fulfilling.
 
----
-
 # Problem Statement
 
 The user has a large and constantly growing collection of interests, hobbies, projects, and experiences they would like to pursue.
@@ -42,8 +40,6 @@ The effort required to determine what is possible often exceeds the motivation a
 
 As a result, the user frequently spends free time deciding what to do rather than doing something they genuinely enjoy.
 
----
-
 # Vision
 
 Greenhouse helps users answer a simple question:
@@ -51,8 +47,6 @@ Greenhouse helps users answer a simple question:
 > What would I enjoy doing right now that I can actually start right now?
 
 The application should reduce decision fatigue, surface realistic options, and help users better understand which activities create lasting fulfillment.
-
----
 
 # Target User
 
@@ -69,8 +63,6 @@ The product is initially designed for a single user with:
 
 Future versions may support users with similar behavioral patterns, but v1 is explicitly optimized for the author's personal workflow and needs.
 
----
-
 # Product Principles
 
 ## Fulfillment Over Productivity
@@ -78,8 +70,6 @@ Future versions may support users with similar behavioral patterns, but v1 is ex
 Greenhouse exists to support fulfillment, enjoyment, curiosity, and enrichment.
 
 The application does not exist to maximize output, efficiency, achievement, or measurable productivity.
-
----
 
 ## Curiosity Without Obligation
 
@@ -89,15 +79,11 @@ Activities are opportunities, not obligations.
 
 Users should never feel guilty about unfinished activities.
 
----
-
 ## Reduce Activation Energy
 
 The application should help users identify barriers before they are ready to begin.
 
 When motivation becomes available, the user should be able to start quickly and confidently.
-
----
 
 ## Reality-Based Recommendations
 
@@ -105,12 +91,8 @@ Recommendations should be based on the user's current circumstances.
 
 The system should prioritize what is realistically achievable right now.
 
----
-
 ## Reflection Over Performance
 
 The application should help users learn about themselves.
 
 Insights should focus on fulfillment and personal patterns rather than performance metrics.
-
----
