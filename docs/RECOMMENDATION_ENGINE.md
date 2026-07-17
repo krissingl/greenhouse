@@ -1,5 +1,7 @@
 # Greenhouse Recommendation Engine
 
+> **Historical planning document — superseded by [`spec/PROJECT_SPEC.md`](../spec/PROJECT_SPEC.md) as the single source of truth.** Frozen; do not edit for current truth.
+
 ## Purpose
 
 The recommendation engine exists to answer a single question:

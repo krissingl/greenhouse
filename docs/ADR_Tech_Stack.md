@@ -1,5 +1,7 @@
 # ADR-001: Technology Stack Selection
 
+> **Historical decision record — current architecture truth lives in [`spec/PROJECT_SPEC.md`](../spec/PROJECT_SPEC.md).** This ADR is frozen; supersede with a new ADR rather than editing.
+
 ## Status
 
 Accepted

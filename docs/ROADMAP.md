@@ -1,5 +1,7 @@
 # Greenhouse Implementation Roadmap
 
+> **Historical planning document — superseded by [`spec/PROJECT_SPEC.md`](../spec/PROJECT_SPEC.md) as the single source of truth.** Frozen; do not edit for current truth.
+
 The project will be developed as a series of **vertical slices**, with each phase delivering a complete, usable feature that exercises the presentation, application, domain, and persistence layers.
 
 ---
