@@ -168,6 +168,26 @@ guardrails: reflect meaning, never measurement.
 
 ---
 
+## Visual Design & Theming
+
+Seed design tokens **already exist** and should be adopted as the basis of the Phase 0
+design system — do **not** regenerate them from scratch:
+
+- `catchAll/light_theme.ts`, `catchAll/dark_theme.ts` — a light/dark palette
+  (greenhouse-green `#5F8F62` primary, warm secondary, blue tertiary, semantic
+  success/warning/error/info, layered surfaces, tiered text, borders). These define the
+  app's look and the light/dark contract the UI must honour.
+
+**Two Phase 0 tasks to finish them:**
+
+1. **Missing type.** Both files `import { Theme } from "./types"`, but no `Theme` type
+   exists anywhere in the repo yet. Phase 0 must define it (shape ≈ `{ dark: boolean;
+   colors: { … } }`) so the themes compile.
+2. **Relocate out of `catchAll/`.** That folder is a temporary drop, not a home. Phase 0
+   should move these into the real design-system location (e.g. `src/theme/`), add the
+   `Theme` type, and wire theme selection to follow the system light/dark preference
+   (offline, on-device).
+
 ## Related
 
 - [`spec/PROJECT_SPEC.md`](../../spec/PROJECT_SPEC.md) — authoritative domain model,

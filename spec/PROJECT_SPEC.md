@@ -175,6 +175,8 @@ validation, and display of recommendations/analytics. **Contains no business
 logic** — all decisions are delegated to application services.
 
 - Dirs: `src/screens`, `src/components`, `src/navigation`
+- Design system & theming: seed light/dark tokens already exist (`catchAll/*_theme.ts`);
+  they are adopted, typed, and relocated during Phase 0 — see the design-intent doc.
 
 ### Backend (Application + Domain)
 
@@ -399,8 +401,8 @@ improved recommendation heuristics, AI-assisted organization, richer analytics.
 
 **Design intent (UX/interaction):** see
 [`docs/planning/ux-design-intent.md`](../docs/planning/ux-design-intent.md) — the
-guided-setup flow, interest-shape UX, and fulfillment-capture interaction. Read it
-before expanding Phases 2, 3, and 5–7 into tickets.
+guided-setup flow, interest-shape UX, fulfillment-capture interaction, and the seed
+design tokens. Read it before expanding Phases 0, 2, 3, and 5–7 into tickets.
 
 ---
 

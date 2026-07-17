@@ -1,5 +1,15 @@
 # greenhouse — Changelog
 
+## [2026-07-16] — Wired seed design tokens into the workflow
+- Triggered by: user (catchAll theme files)
+- Context: catchAll/light_theme.ts + dark_theme.ts (committed) were orphaned — no
+  artifact referenced them, and both import a `Theme` type that doesn't exist yet.
+- Changed: Added a "Visual Design & Theming" section to docs/planning/ux-design-intent.md
+  pointing at the seed tokens, flagging the missing `Theme` type and the need to relocate
+  out of catchAll/ — both as Phase 0 tasks.
+- Changed: Added a design-system/theming pointer in the spec's Frontend architecture, and
+  extended the design-intent reading pointer to include Phase 0.
+
 ## [2026-07-16] — Captured UX design intent; skip-vs-none semantic
 - Triggered by: user (design-doc question)
 - Added: docs/planning/ux-design-intent.md — living design-intent doc holding the
