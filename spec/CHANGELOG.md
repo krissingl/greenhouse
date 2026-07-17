@@ -1,5 +1,31 @@
 # greenhouse — Changelog
 
+## [2026-07-16] — Captured UX design intent; skip-vs-none semantic
+- Triggered by: user (design-doc question)
+- Added: docs/planning/ux-design-intent.md — living design-intent doc holding the
+  guided-setup flow (capability-not-completion, card flow, skip vs. doesn't-apply,
+  just-in-time enrichment, question set, guardrails), interest-shape UX, and
+  fulfillment-capture interaction (two signals, capture-the-choice, no scoreboard).
+- Changed: Added a pointer to the design doc from the spec's Feature Roadmap.
+- Changed: Promoted the skip (unknown) vs. doesn't-apply (explicitly-none) distinction
+  into the spec's Recommendation Engine — the two states must be stored distinctly since
+  they drive feasibility differently.
+
+## [2026-07-16] — Interest shapes: Steps, per-type completion, revealed fulfillment
+- Triggered by: user (domain-model iteration)
+- Changed: Domain Model now distinguishes the three Interest shapes. Added a `Step`
+  entity for StructuredLearning (ordered itinerary, incremental, own done-state),
+  un-deferring the previously-shelved Milestone concept — narrowly, structured-only.
+- Changed: Reframed Session as the frictionless record of *choosing* to do an interest
+  (captured at point-of-choice, no manual logging). Reframed Reflection around two
+  fulfillment signals: stated (self-report) and revealed (how often the user chose it).
+  Both are internal; raw counts/streaks are never shown to the user.
+- Changed: Completion is now per-type and always user-declared (one-time = done;
+  unstructured = guilt-free Conclude/Resting; structured = Steps done). The engine now
+  surfaces the *next incomplete Step* for structured interests.
+- Changed: Added StepService to the draft contracts and `Step` to project-config.json
+  domain entities. Added an Open Question on which interaction counts as "choosing."
+
 ## [2026-07-16] — Resolved open questions; recommendation engine reframed
 - Triggered by: user (open-questions walkthrough)
 - Changed: Rewrote the Recommendation Engine section — it is a deterministic
@@ -12,6 +38,10 @@
   SQLite file copy for v1 with JSON export deferred).
 - Changed: Trimmed Open Questions to the two genuinely-open items (per-dimension
   thresholds/tolerance bands → Phase 3; constraint storage shape → Phase 2).
+- Changed: Consistency pass after the reframe — removed lingering "score → rank"
+  language from the Phase 3 roadmap cell, the "ranked" Recommendation entity wording,
+  and "recommendation rankings" in derived state, so nothing implies desirability
+  ranking anymore.
 
 ## [2026-07-16] — Spec consolidated into single source of truth
 - Triggered by: user (spec fleshing-out)

@@ -93,6 +93,18 @@ is required at creation; all other data is optional and incrementally added.
 - `InProgress` — currently being explored or pursued.
 - `Complete` — the user considers it complete (user-determined).
 
+**Shape & completion by type**
+
+| Type | Steps | Sessions | "Complete" means |
+|---|---|---|---|
+| `OneTimeProject` | — | optional | user marks done → reflect |
+| `UnstructuredLearning` | — | the main mechanic (repeated) | guilt-free **Conclude / Resting** (satisfied or paused, never "finished") → reflect |
+| `StructuredLearning` | ordered **Steps** | ≈ doing the next Step | Steps done or user declares → reflect |
+
+Completion is **always user-declared** and never auto-forced — the app only *offers*
+it at the natural moment. Interests can be re-opened, and Steps added after a
+"completion."
+
 ### Constraint
 
 A condition affecting whether an Interest can be pursued: time, supplies,
@@ -101,15 +113,36 @@ reduce future activation energy and drive recommendation matching.
 
 ### Session
 
-A single engagement with an Interest (practice violin 20 min, complete a lesson).
-Sessions let the user resume without repeating planning work. **Not** productivity
-tracking.
+A record of a single engagement — the *act of choosing to do* an Interest. Captured
+frictionlessly at the moment the user starts or acts on the interest (e.g. from a
+recommendation), so it needs no manual logging; carries an optional duration and an
+optional one-tap mood. Sessions let the user resume without repeating planning work.
+
+Session **counts are internal fulfillment data, never a user-facing scoreboard** — how
+often the user *chose* an interest is a revealed-interest signal (see Reflection). The
+app never shows raw counts or streaks. **Not** productivity tracking.
+
+### Step _(StructuredLearning interests only)_
+
+An ordered unit of a structured interest's itinerary (e.g. "Module 4: video +
+assignment"), with a title, an optional time estimate, and its own done-state. Steps
+are added **incrementally** — never a mandatory full curriculum upfront. The
+recommendation engine surfaces the *next incomplete Step* and time-fits it. One-time
+and unstructured interests have no Steps.
 
 ### Reflection
 
-Impressions captured immediately after engaging with an Interest: fulfillment,
-satisfaction, mood, would-do-again, notes. Lightweight and optional; exists to
-improve self-understanding.
+Fulfillment data comes from **two signals**:
+
+- **Stated** — impressions the user records (fulfillment, satisfaction, mood,
+  would-do-again, notes). Lightweight and optional; invited periodically ("How's
+  violin feeling lately?") and at conclusion — **not** per session.
+- **Revealed** — how often the user *chose* the interest over time. Repeatedly choosing
+  violin (10× in a month vs. once) is behavioural evidence of genuine interest, derived
+  from Session records. Internal only, surfaced as qualitative insight — never a raw
+  count.
+
+Reflections exist to improve self-understanding, not to measure output.
 
 ### ImpactReflection
 
@@ -119,8 +152,9 @@ distinguish immediate fulfillment from long-term impact.
 
 ### Recommendation _(derived, not persisted)_
 
-A ranked, computed result of the recommendation engine given the user's current
-context. Never stored as a system-of-record entity.
+A computed, feasibility-ordered result of the recommendation engine for a given
+`UserContext` — an eligible Interest plus any soft-block warnings. Never stored as a
+system-of-record entity.
 
 ---
 
@@ -161,7 +195,7 @@ rather than optimizing prematurely.
 
 - Persistent state: Interests, Constraints, Sessions, Reflections, ImpactReflections.
 - Derived state (not stored unless caching is required for performance):
-  dashboard statistics, recommendation rankings, analytics summaries.
+  dashboard statistics, recommendation results, analytics summaries.
 
 ### Cross-cutting
 
@@ -216,8 +250,11 @@ produces a per-dimension result:
 
 Severity is **computed at evaluation time, not stored** on the constraint: the same
 "time" requirement yields OK, soft, or hard depending on the current context.
-Missing requirement data never blocks — an unconfigured interest stays eligible
-(optionally noted as lower-confidence).
+A requirement can be **unknown** (the user skipped it) or **explicitly none** (the user
+answered "doesn't apply"). Unknown never blocks — the interest stays eligible, optionally
+noted as lower-confidence. Explicitly-none means the interest is unconstrained on that
+dimension (always OK). The two must be **stored distinctly** — conflating them breaks
+feasibility filtering.
 
 ### Result & ordering
 
@@ -226,6 +263,13 @@ with any soft-block warnings. Ordering is **feasibility-first**: fully-feasible
 interests before soft-blocked ones. There is no scoring by desirability, history, or
 activation-energy weighting — feasibility status and soft warnings are the only
 signals.
+
+### Structured interests — recommend the next Step
+
+For a `StructuredLearning` interest the unit evaluated is its *next incomplete Step*,
+using that Step's own time estimate: "You have 15 min → your next cyber step is a
+10-min video + 5-min assignment." This turns a broad pursuit into an actionable,
+time-fitted suggestion. One-time and unstructured interests are evaluated as a whole.
 
 ### v1 scope
 
@@ -283,6 +327,13 @@ interface AnalyticsService {
   fulfillmentByCategory(): Promise<CategoryStat[]>;
   highImpactInterests(): Promise<Interest[]>;
 }
+
+interface StepService {                       // StructuredLearning interests only
+  add(interestId: InterestId, step: { title: string; estimateMinutes?: number }): Promise<Step>;
+  reorder(interestId: InterestId, orderedStepIds: StepId[]): Promise<void>;
+  setDone(stepId: StepId, done: boolean): Promise<Step>;
+  nextIncomplete(interestId: InterestId): Promise<Step | null>;
+}
 ```
 
 ### Repositories (`src/repositories`)
@@ -328,7 +379,7 @@ domain, and persistence and delivers a complete, usable feature.
 | **0** | Foundation | Expo + RN + TypeScript project, ESLint/Prettier, navigation, design system/theming, SQLite + migrations, repository infra, logging, testing framework. Runnable shell that initializes the DB. |
 | **1** | Interest Backlog (MVP) | Create (title only), list, view, edit, archive/delete, search, filter by state. A usable personal backlog. |
 | **2** | Guided Interest Setup | Optionally enrich interests: type, time/energy/focus/location/supplies/social/weather/seasonal requirements. All fields optional. |
-| **3** | Recommendation Engine (v1) | Deterministic pipeline (load → hard constraints → soft constraints → score → rank → return). Request recommendations from current circumstances. |
+| **3** | Recommendation Engine (v1) | Deterministic feasibility filter (load candidates → evaluate per-dimension: hard blocks exclude, soft blocks warn → order feasibility-first → return). Request recommendations from current circumstances. |
 | **4** | Sessions | Start/end session, record duration, optional notes. |
 | **5** | Reflections | Fulfillment, satisfaction, mood, would-do-again, notes. |
 | **6** | Impact Reflections | Delayed reflections; lasting impact associated with completed interests. |
@@ -346,6 +397,11 @@ the app stays runnable and releasable.
 **Future backlog (out of v1 scope):** cloud sync, web client, encrypted backups,
 improved recommendation heuristics, AI-assisted organization, richer analytics.
 
+**Design intent (UX/interaction):** see
+[`docs/planning/ux-design-intent.md`](../docs/planning/ux-design-intent.md) — the
+guided-setup flow, interest-shape UX, and fulfillment-capture interaction. Read it
+before expanding Phases 2, 3, and 5–7 into tickets.
+
 ---
 
 ## Resolved Decisions
@@ -362,9 +418,20 @@ improved recommendation heuristics, AI-assisted organization, richer analytics.
 - **Archive = soft-delete flag** _(2026-07-16)_ — `archivedAt` timestamp, orthogonal
   to the `Backlog/InProgress/Complete` lifecycle; archived interests are hidden from
   default views but recoverable. Delete is a separate, permanent hard removal.
-- **Milestones deferred** _(2026-07-16)_ — Sessions are sufficient for v1. A Milestone
-  entity may attach to an Interest later without disrupting Sessions; it stays in the
-  future backlog.
+- **Steps for structured interests — un-defers Milestones** _(2026-07-16)_ — a `Step`
+  entity models the itinerary of `StructuredLearning` interests (ordered, incrementally
+  added, own done-state); the engine recommends the next Step. One-time and unstructured
+  interests have no Steps. This narrowly reverses the earlier deferral — the
+  cybersecurity-cert case showed Sessions alone can't represent a curriculum.
+- **Per-type shape & completion** _(2026-07-16)_ — one-time = user marks done;
+  unstructured = guilt-free Conclude/Resting (never "finished"); structured = Steps done
+  or user declares. Always user-declared, never auto-forced.
+- **Fulfillment = stated + revealed, both internal** _(2026-07-16)_ — the fulfillment
+  review draws on self-reported reflections *and* how often the user chose an interest
+  (revealed interest, derived from Sessions). Engagement is captured frictionlessly at
+  the point of choosing — no manual logging. Raw counts and streaks are never shown to
+  the user; frequency appears only as qualitative insight. This tracks genuine interest,
+  not productivity.
 - **Backup/export v1 = SQLite file copy** _(2026-07-16)_ — the lightest complete
   option, fully on-device and offline, with no impact on installing the app to a
   phone. Versioned JSON export is deferred to the future backlog (for web-client
@@ -377,6 +444,9 @@ improved recommendation heuristics, AI-assisted organization, richer analytics.
   under budget still counts as soft). Tuning work; settle during Phase 3.
 - **Constraint storage shape** — likely one row per dimension per interest, but the
   concrete schema is deferred to Phase 2 when guided setup is built.
+- **What counts as "choosing"** — the exact interaction recorded as a Session (acting on
+  a recommendation or an explicit "start" vs. merely opening details), so
+  revealed-interest data isn't inflated by browsing. Settle when Sessions land (Phase 4).
 
 ---
 
