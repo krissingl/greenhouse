@@ -6,9 +6,6 @@ android
 ios
 package-lock.json
 
-# Temporary drop-zone, relocated into src/theme by Ticket 4
-catchAll
-
 # Planning, spec, and session artifacts — not app source, out of formatting scope
 docs
 spec
