@@ -8,16 +8,12 @@
  * the real connection and migration-runner logic under test still executes
  * against an actual SQLite engine.
  */
+/// <reference types="node" />
 import { DatabaseSync, type SQLInputValue } from 'node:sqlite';
 
 export interface SQLiteRunResult {
   lastInsertRowId: number;
   changes: number;
-}
-
-function normalizeParams(params: unknown[]): SQLInputValue[] {
-  const values = params.length === 1 && Array.isArray(params[0]) ? params[0] : params;
-  return values as SQLInputValue[];
 }
 
 export class SQLiteDatabase {
@@ -31,18 +27,21 @@ export class SQLiteDatabase {
     this.db.exec(source);
   }
 
-  runSync(source: string, ...params: unknown[]): SQLiteRunResult {
-    const info = this.db.prepare(source).run(...normalizeParams(params));
+  runSync(source: string, params: SQLInputValue[] = []): SQLiteRunResult {
+    const info = this.db.prepare(source).run(...params);
     return { lastInsertRowId: Number(info.lastInsertRowid), changes: Number(info.changes) };
   }
 
-  getFirstSync<T>(source: string, ...params: unknown[]): T | null {
-    const row = this.db.prepare(source).get(...normalizeParams(params));
-    return (row as T | undefined) ?? null;
+  getFirstSync<T>(source: string, params: SQLInputValue[] = []): T | null {
+    const row = this.db.prepare(source).get(...params);
+    // T is the caller-supplied row shape; node:sqlite returns untyped rows,
+    // so this cast is unavoidable at the SQLite boundary.
+    return row === undefined ? null : (row as T);
   }
 
-  getAllSync<T>(source: string, ...params: unknown[]): T[] {
-    return this.db.prepare(source).all(...normalizeParams(params)) as T[];
+  getAllSync<T>(source: string, params: SQLInputValue[] = []): T[] {
+    // Same untyped-row caveat as getFirstSync above.
+    return this.db.prepare(source).all(...params) as T[];
   }
 
   withTransactionSync(task: () => void): void {

@@ -1,5 +1,6 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import type { ReactElement } from 'react';
 
 import HomeScreen from '../screens/HomeScreen';
 
@@ -9,7 +10,7 @@ export type RootStackParamList = {
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-export default function RootNavigator() {
+export default function RootNavigator(): ReactElement {
   return (
     <NavigationContainer>
       <Stack.Navigator initialRouteName="Home">

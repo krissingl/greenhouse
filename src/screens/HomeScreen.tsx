@@ -1,8 +1,9 @@
+import type { ReactElement } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { useTheme } from '../theme';
 
-export default function HomeScreen() {
+export default function HomeScreen(): ReactElement {
   const theme = useTheme();
 
   return (
