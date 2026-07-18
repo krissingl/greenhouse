@@ -9,4 +9,12 @@ module.exports = defineConfig([
   {
     ignores: ['dist/*'],
   },
+  {
+    // jest.mock() factories must use require() — import declarations can't
+    // appear inside a callback, and the factory runs before hoisted imports.
+    files: ['jest.setup.ts'],
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off',
+    },
+  },
 ]);
