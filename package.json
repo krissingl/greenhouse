@@ -33,6 +33,7 @@
     "web": "expo start --web",
     "lint": "eslint .",
     "format": "prettier --write .",
+    "typecheck": "tsc --noEmit",
     "test": "jest"
   },
   "private": true,
