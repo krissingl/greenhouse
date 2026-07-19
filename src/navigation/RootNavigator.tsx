@@ -4,6 +4,8 @@ import type { ReactElement } from 'react';
 
 import CreateInterestScreen from '../screens/CreateInterestScreen';
 import EditInterestScreen from '../screens/EditInterestScreen';
+import type { EnrichmentAxis } from '../screens/enrichmentQuestions';
+import GuidedSetupScreen from '../screens/GuidedSetupScreen';
 import InterestDetailScreen from '../screens/InterestDetailScreen';
 import InterestListScreen from '../screens/InterestListScreen';
 
@@ -12,6 +14,7 @@ export type RootStackParamList = {
   CreateInterest: undefined;
   InterestDetail: { interestId: string };
   EditInterest: { interestId: string };
+  GuidedSetup: { interestId: string; startDimension?: EnrichmentAxis };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -39,6 +42,11 @@ export default function RootNavigator(): ReactElement {
           name="EditInterest"
           component={EditInterestScreen}
           options={{ title: 'Edit Interest' }}
+        />
+        <Stack.Screen
+          name="GuidedSetup"
+          component={GuidedSetupScreen}
+          options={{ title: 'Tell Greenhouse more' }}
         />
       </Stack.Navigator>
     </NavigationContainer>
