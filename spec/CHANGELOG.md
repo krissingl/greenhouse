@@ -1,5 +1,44 @@
 # greenhouse — Changelog
 
+## [2026-07-19] — Recorded four settled Phase 2 planning decisions
+- Triggered by: Phase 2 planning (phase plan + ticket plan "Flag for the user")
+- Context: `docs/planning/phasePlans/phase-2-guided-interest-setup.md` and
+  `docs/planning/ticketPlans/ticket-plan-phase-2.md` settled several decisions
+  beyond the spec's first-pass draft, flagged for the spec to record before
+  Phase 2 tickets (#21–#28) are implemented. Documentation only — no Phase 2
+  code was written.
+- Added: `ConstraintService` to API Contracts — `listForInterest(interestId)`,
+  `answer(interestId, dimension, input)`, `needsEnrichment(interestIds,
+  dimensions)` — required by the "Presentation calls Services" layering rule,
+  since no screen may call `ConstraintRepository` directly.
+- Changed: `ConstraintRepository` in API Contracts gains
+  `findFullyAnsweredInterestIds(interestIds, dimensions)`; documented
+  `replaceForInterest` as a per-dimension upsert (dimensions absent from the
+  call are left untouched), not a wipe-and-reinsert.
+- Resolved: "Constraint storage shape" (previously an Open Question) — the
+  Domain Model's eight conceptual Constraint axes are stored as six
+  `ConstraintDimension` values (`WeatherSeason` merges weather+seasonal,
+  `EnergyFocus` merges energy+focus), one row per (interest, dimension) with a
+  `UNIQUE` constraint, `ConstraintStatus` of `Unknown | None | Set`, a
+  JSON-encoded value, and `ON DELETE CASCADE` from the parent interest. Moved
+  from Open Questions to Resolved Decisions.
+- Changed: Noted `EnergyFocus` is a valid, stored `ConstraintDimension` from
+  Phase 2 onward but has no question card built until a later phase, per the
+  design-intent doc's "(later)" annotation and the Recommendation Engine's
+  deferral of energy/focus evaluation. Qualified the Feature Roadmap's Phase 2
+  cell text accordingly so it no longer implies energy/focus is captured in
+  v1.
+- Added: `Interest.typeSkippedAt: string | null` — a durable marker that the
+  user deliberately answered "Not sure" to the Type question, mirroring the
+  `archivedAt` pattern; distinct from `type === null` meaning "never asked."
+  Added `InterestService.skipType(id): Promise<Interest>` to API Contracts, and
+  widened `InterestService.update`'s patch type to include `typeSkippedAt`.
+  Choosing an actual type clears `typeSkippedAt`.
+- Added: Sharpened an Open Question — which phase owns the `Step` entity, and
+  which phase owns type-specific Interest behavior (no-ceremony Complete /
+  guilt-free Conclude-Resting / Steps-based completion) — left unresolved for
+  the user to decide before Phase 3 is planned.
+
 ## [2026-07-19] — Reconciled InterestService/Repository contracts with Phase 1 implementation
 - Triggered by: Phase 1 review (code-reviewer-spec findings), disposed as fix
 - Context: The implemented `InterestService`/`InterestRepository` diverged from the
