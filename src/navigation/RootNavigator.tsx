@@ -3,6 +3,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { ReactElement } from 'react';
 
 import CreateInterestScreen from '../screens/CreateInterestScreen';
+import EditInterestScreen from '../screens/EditInterestScreen';
 import InterestDetailScreen from '../screens/InterestDetailScreen';
 import InterestListScreen from '../screens/InterestListScreen';
 
@@ -33,6 +34,11 @@ export default function RootNavigator(): ReactElement {
           name="InterestDetail"
           component={InterestDetailScreen}
           options={{ title: 'Interest' }}
+        />
+        <Stack.Screen
+          name="EditInterest"
+          component={EditInterestScreen}
+          options={{ title: 'Edit Interest' }}
         />
       </Stack.Navigator>
     </NavigationContainer>
