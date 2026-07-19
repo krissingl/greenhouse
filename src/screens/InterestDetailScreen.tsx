@@ -1,7 +1,7 @@
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useState, type ReactElement } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { Interest } from '../domain/interest';
 import type { RootStackParamList } from '../navigation/RootNavigator';
@@ -53,9 +53,29 @@ export default function InterestDetailScreen({ route, navigation }: Props): Reac
 
   const isArchived = interest.archivedAt !== null;
 
-  // Archive/Unarchive/Delete behavior is wired up in Ticket 9.
-  const handleArchiveToggle = () => {};
-  const handleDelete = () => {};
+  const handleArchiveToggle = async () => {
+    if (isArchived) {
+      const updated = await interestService.unarchive(interestId);
+      setInterest(updated);
+    } else {
+      await interestService.archive(interestId);
+      navigation.navigate('InterestList');
+    }
+  };
+
+  const handleDelete = () => {
+    Alert.alert('Delete this interest?', 'This cannot be undone.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          await interestService.delete(interestId);
+          navigation.navigate('InterestList');
+        },
+      },
+    ]);
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>

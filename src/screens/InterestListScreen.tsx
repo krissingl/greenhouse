@@ -14,12 +14,13 @@ type Props = NativeStackScreenProps<RootStackParamList, 'InterestList'>;
 export default function InterestListScreen({ navigation }: Props): ReactElement {
   const theme = useTheme();
   const [interests, setInterests] = useState<Interest[]>([]);
+  const [showArchived, setShowArchived] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
 
-      interestService.list().then((results) => {
+      interestService.list({ includeArchived: showArchived }).then((results) => {
         if (!cancelled) {
           setInterests(results);
         }
@@ -28,11 +29,16 @@ export default function InterestListScreen({ navigation }: Props): ReactElement 
       return () => {
         cancelled = true;
       };
-    }, []),
+    }, [showArchived]),
   );
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <Pressable onPress={() => setShowArchived((current) => !current)} style={styles.filterToggle}>
+        <Text style={{ color: theme.colors.primary, fontSize: theme.typography.bodySmall.size }}>
+          {showArchived ? 'Hide Archived' : 'Show Archived'}
+        </Text>
+      </Pressable>
       <FlatList
         data={interests}
         keyExtractor={(item) => item.id}
@@ -76,6 +82,11 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  filterToggle: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    alignSelf: 'flex-end',
   },
   addButton: {
     position: 'absolute',
