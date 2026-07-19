@@ -3,17 +3,60 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useState, type ReactElement } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import type { Constraint } from '../domain/constraint';
 import type { Interest } from '../domain/interest';
 import type { RootStackParamList } from '../navigation/RootNavigator';
+import { describeCapability } from './describeCapability';
+import {
+  COVERED_AXES,
+  enrichmentQuestions,
+  summarizeAnswer,
+  type EnrichmentAxis,
+} from './enrichmentQuestions';
+import { constraintService } from '../services/ConstraintService';
 import { interestService } from '../services/InterestService';
 import { useTheme } from '../theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'InterestDetail'>;
 
+interface ChipDisplay {
+  axis: EnrichmentAxis;
+  text: string;
+  answered: boolean;
+}
+
+function chipDisplayFor(
+  axis: EnrichmentAxis,
+  interest: Interest,
+  constraints: Constraint[],
+): ChipDisplay {
+  const shortLabel = enrichmentQuestions[axis].shortLabel;
+
+  if (axis === 'Type') {
+    if (interest.type) {
+      const text = summarizeAnswer('Type', 'Set', interest.type) ?? interest.type;
+      return { axis, text, answered: true };
+    }
+    if (interest.typeSkippedAt) {
+      return { axis, text: 'Not sure yet', answered: true };
+    }
+    return { axis, text: `＋ add ${shortLabel}`, answered: false };
+  }
+
+  const constraint = constraints.find((c) => c.dimension === axis);
+  if (!constraint || constraint.status === 'Unknown') {
+    return { axis, text: `＋ add ${shortLabel}`, answered: false };
+  }
+
+  const summary = summarizeAnswer(axis, constraint.status, constraint.value);
+  return { axis, text: summary ?? shortLabel, answered: true };
+}
+
 export default function InterestDetailScreen({ route, navigation }: Props): ReactElement {
   const theme = useTheme();
   const { interestId } = route.params;
   const [interest, setInterest] = useState<Interest | null | undefined>(undefined);
+  const [constraints, setConstraints] = useState<Constraint[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -21,11 +64,11 @@ export default function InterestDetailScreen({ route, navigation }: Props): Reac
     useCallback(() => {
       let cancelled = false;
 
-      interestService
-        .get(interestId)
-        .then((result) => {
+      Promise.all([interestService.get(interestId), constraintService.listForInterest(interestId)])
+        .then(([interestResult, constraintResult]) => {
           if (!cancelled) {
-            setInterest(result);
+            setInterest(interestResult);
+            setConstraints(constraintResult);
             setLoadError(null);
           }
         })
@@ -113,6 +156,8 @@ export default function InterestDetailScreen({ route, navigation }: Props): Reac
     ]);
   };
 
+  const capabilityCopy = describeCapability(constraints, interest.type, interest.typeSkippedAt);
+
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Text style={{ color: theme.colors.text, fontSize: theme.typography.h2.size }}>
@@ -128,6 +173,47 @@ export default function InterestDetailScreen({ route, navigation }: Props): Reac
         Created: {interest.createdAt}
       </Text>
       <Text style={{ color: theme.colors.textTertiary }}>Updated: {interest.updatedAt}</Text>
+
+      <Text
+        style={{
+          color: theme.colors.textSecondary,
+          marginTop: theme.spacing.md,
+          fontStyle: 'italic',
+        }}
+      >
+        {capabilityCopy}
+      </Text>
+
+      <View style={styles.chipRow}>
+        {COVERED_AXES.map((axis) => {
+          const chip = chipDisplayFor(axis, interest, constraints);
+          return (
+            <Pressable
+              key={axis}
+              onPress={() =>
+                navigation.navigate('GuidedSetup', { interestId, startDimension: axis })
+              }
+              style={[
+                styles.chip,
+                {
+                  backgroundColor: chip.answered
+                    ? theme.colors.primaryContainer
+                    : theme.colors.surfaceVariant,
+                },
+              ]}
+            >
+              <Text style={{ color: theme.colors.text }}>{chip.text}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      <Pressable
+        onPress={() => navigation.navigate('GuidedSetup', { interestId })}
+        style={[styles.button, { backgroundColor: theme.colors.tertiary }]}
+      >
+        <Text style={{ color: theme.colors.textOnPrimary }}>＋ Tell me more</Text>
+      </Pressable>
 
       {actionError && (
         <Text style={{ color: theme.colors.error, marginTop: theme.spacing.sm }}>
@@ -172,5 +258,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 12,
     borderRadius: 8,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 12,
+  },
+  chip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
   },
 });
