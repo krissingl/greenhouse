@@ -1,5 +1,64 @@
 # greenhouse — Changelog
 
+## [2026-07-19] — Recorded four settled Phase 2 planning decisions
+- Triggered by: Phase 2 planning (phase plan + ticket plan "Flag for the user")
+- Context: `docs/planning/phasePlans/phase-2-guided-interest-setup.md` and
+  `docs/planning/ticketPlans/ticket-plan-phase-2.md` settled several decisions
+  beyond the spec's first-pass draft, flagged for the spec to record before
+  Phase 2 tickets (#21–#28) are implemented. Documentation only — no Phase 2
+  code was written.
+- Added: `ConstraintService` to API Contracts — `listForInterest(interestId)`,
+  `answer(interestId, dimension, input)`, `needsEnrichment(interestIds,
+  dimensions)` — required by the "Presentation calls Services" layering rule,
+  since no screen may call `ConstraintRepository` directly.
+- Changed: `ConstraintRepository` in API Contracts gains
+  `findFullyAnsweredInterestIds(interestIds, dimensions)`; documented
+  `replaceForInterest` as a per-dimension upsert (dimensions absent from the
+  call are left untouched), not a wipe-and-reinsert.
+- Resolved: "Constraint storage shape" (previously an Open Question) — the
+  Domain Model's eight conceptual Constraint axes are stored as six
+  `ConstraintDimension` values (`WeatherSeason` merges weather+seasonal,
+  `EnergyFocus` merges energy+focus), one row per (interest, dimension) with a
+  `UNIQUE` constraint, `ConstraintStatus` of `Unknown | None | Set`, a
+  JSON-encoded value, and `ON DELETE CASCADE` from the parent interest. Moved
+  from Open Questions to Resolved Decisions.
+- Changed: Noted `EnergyFocus` is a valid, stored `ConstraintDimension` from
+  Phase 2 onward but has no question card built until a later phase, per the
+  design-intent doc's "(later)" annotation and the Recommendation Engine's
+  deferral of energy/focus evaluation. Qualified the Feature Roadmap's Phase 2
+  cell text accordingly so it no longer implies energy/focus is captured in
+  v1.
+- Added: `Interest.typeSkippedAt: string | null` — a durable marker that the
+  user deliberately answered "Not sure" to the Type question, mirroring the
+  `archivedAt` pattern; distinct from `type === null` meaning "never asked."
+  Added `InterestService.skipType(id): Promise<Interest>` to API Contracts, and
+  widened `InterestService.update`'s patch type to include `typeSkippedAt`.
+  Choosing an actual type clears `typeSkippedAt`.
+- Added: Sharpened an Open Question — which phase owns the `Step` entity, and
+  which phase owns type-specific Interest behavior (no-ceremony Complete /
+  guilt-free Conclude-Resting / Steps-based completion) — left unresolved for
+  the user to decide before Phase 3 is planned.
+
+## [2026-07-19] — Reconciled InterestService/Repository contracts with Phase 1 implementation
+- Triggered by: Phase 1 review (code-reviewer-spec findings), disposed as fix
+- Context: The implemented `InterestService`/`InterestRepository` diverged from the
+  API Contracts section in three ways surfaced by review: `archive` was declared as
+  `Promise<void>` but implemented as `Promise<Interest>`; `update`'s patch type was
+  declared as `Partial<InterestDetails>` (type only) but Ticket #18 requires title
+  edits via `update`, and the implementation (post title-patch-corruption fix, see
+  below) accepts `title`/`type`/`state`/`archivedAt`; `list`'s filter omitted
+  `includeArchived`, which Tickets #19/#20 require. Direction: update the spec to
+  match the implementation — the ticket acceptance criteria mandate this behavior.
+- Changed: `InterestService.archive` now documented as `Promise<Interest>`.
+- Changed: `InterestService.update`'s patch type narrowed to
+  `Partial<Pick<Interest, 'title' | 'type' | 'state' | 'archivedAt'>>`, matching the
+  narrowed `InterestPatch` type introduced in `src/domain/interest.ts` (a quality
+  fix closing a latent bug where an unrestricted `Partial<Interest>` patch could
+  silently overwrite `createdAt`).
+- Changed: `InterestService.list`'s filter parameter now includes
+  `includeArchived?: boolean`, matching `InterestFilter` and the default-hides-archived
+  behavior implemented in Ticket #14 and exercised by Tickets #19/#20.
+
 ## [2026-07-18] — Closed InterestService contract gap (delete/unarchive)
 - Triggered by: Phase 1 phase plan (flagged contract gap)
 - Context: `InterestService` declared `archive` (soft-remove) but had no `delete`

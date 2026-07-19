@@ -1,6 +1,6 @@
 # Greenhouse — Project Spec
 
-_Last updated: 2026-07-16 | Status: ACTIVE — single source of truth_
+_Last updated: 2026-07-19 | Status: ACTIVE — single source of truth_
 
 > This is the living specification for Greenhouse and the authoritative source
 > for engineering decisions. The documents under `docs/` (PRD, ADRs, domain
@@ -107,9 +107,22 @@ it at the natural moment. Interests can be re-opened, and Steps added after a
 
 ### Constraint
 
-A condition affecting whether an Interest can be pursued: time, supplies,
-location, social, weather, seasonal, energy, focus. Constraints are captured to
-reduce future activation energy and drive recommendation matching.
+A condition affecting whether an Interest can be pursued, across eight
+conceptual axes: time, supplies, location, social, weather, seasonal, energy,
+focus. Constraints are captured to reduce future activation energy and drive
+recommendation matching.
+
+**Storage shape** _(resolved 2026-07-19, Phase 2)_ — the eight conceptual axes
+are stored as six `ConstraintDimension` values: `Time`, `Supplies`, `Location`,
+`Social`, `WeatherSeason` (merges weather + seasonal), and `EnergyFocus`
+(merges energy + focus) — matching the design-intent doc's six-question v1 set
+one-for-one. One row per `(interest, dimension)`, enforced by a `UNIQUE`
+constraint. `ConstraintStatus` is `Unknown | None | Set`, keeping "not yet
+answered" and "explicitly doesn't apply" stored distinctly per the
+Recommendation Engine's requirement. `value` is JSON-encoded per dimension, and
+constraint rows are removed via `ON DELETE CASCADE` when the parent Interest is
+deleted. `EnergyFocus` is a valid, stored dimension from Phase 2 onward but has
+no question card until a later phase (see Feature Roadmap).
 
 ### Session
 
@@ -302,12 +315,19 @@ often builds energy along the way.
 interface InterestService {
   create(input: { title: string } & Partial<InterestDetails>): Promise<Interest>;
   get(id: InterestId): Promise<Interest | null>;
-  list(filter?: { state?: InterestState; type?: InterestType; query?: string }): Promise<Interest[]>;
-  update(id: InterestId, patch: Partial<InterestDetails>): Promise<Interest>;
+  list(filter?: { state?: InterestState; type?: InterestType; query?: string; includeArchived?: boolean }): Promise<Interest[]>;
+  update(id: InterestId, patch: Partial<Pick<Interest, 'title' | 'type' | 'state' | 'archivedAt' | 'typeSkippedAt'>>): Promise<Interest>;
   setState(id: InterestId, state: InterestState): Promise<Interest>;
-  archive(id: InterestId): Promise<void>;   // soft-remove; delete is a separate hard op
+  archive(id: InterestId): Promise<Interest>;   // soft-remove (sets archivedAt); delete is a separate hard op
   unarchive(id: InterestId): Promise<Interest>; // clears archivedAt; inverse of archive
   delete(id: InterestId): Promise<void>;    // permanent hard removal; distinct from archive
+  skipType(id: InterestId): Promise<Interest>;  // durable "Not sure" on the Type question; sets typeSkippedAt, clears type. Choosing an actual type clears typeSkippedAt.
+}
+
+interface ConstraintService {                  // added Phase 2 — no screen may call ConstraintRepository directly
+  listForInterest(interestId: InterestId): Promise<Constraint[]>; // one entry per stored ConstraintDimension; synthesizes { status: 'Unknown', value: null } for dimensions with no row
+  answer(interestId: InterestId, dimension: ConstraintDimension, input: { status: ConstraintStatus; value?: ConstraintValue }): Promise<Constraint>;
+  needsEnrichment(interestIds: InterestId[], dimensions: ConstraintDimension[]): Promise<Set<InterestId>>; // interests among interestIds not fully answered on all given dimensions
 }
 
 interface RecommendationService {
@@ -355,7 +375,8 @@ interface InterestRepository {
 
 interface ConstraintRepository {
   findForInterest(interestId: InterestId): Promise<Constraint[]>;
-  replaceForInterest(interestId: InterestId, constraints: Constraint[]): Promise<void>;
+  replaceForInterest(interestId: InterestId, constraints: Constraint[]): Promise<void>; // per-dimension upsert; dimensions absent from the call are left untouched, not a wipe-and-reinsert
+  findFullyAnsweredInterestIds(interestIds: InterestId[], dimensions: ConstraintDimension[]): Promise<Set<InterestId>>; // added Phase 2 — bulk check to avoid N+1 queries
 }
 
 interface SessionRepository {
@@ -382,7 +403,7 @@ domain, and persistence and delivers a complete, usable feature.
 |-------|------|--------------------|
 | **0** | Foundation | Expo + RN + TypeScript project, ESLint/Prettier, navigation, design system/theming, SQLite + migrations, repository infra, logging, testing framework. Runnable shell that initializes the DB. |
 | **1** | Interest Backlog (MVP) | Create (title only), list, view, edit, archive/delete, search, filter by state. A usable personal backlog. |
-| **2** | Guided Interest Setup | Optionally enrich interests: type, time/energy/focus/location/supplies/social/weather/seasonal requirements. All fields optional. |
+| **2** | Guided Interest Setup | Optionally enrich interests: type, time/location/supplies/social/weather+seasonal requirements via a card-based flow. Energy/focus is modeled and stored but has no question card until a later phase. All fields optional. |
 | **3** | Recommendation Engine (v1) | Deterministic feasibility filter (load candidates → evaluate per-dimension: hard blocks exclude, soft blocks warn → order feasibility-first → return). Request recommendations from current circumstances. |
 | **4** | Sessions | Start/end session, record duration, optional notes. |
 | **5** | Reflections | Fulfillment, satisfaction, mood, would-do-again, notes. |
@@ -440,17 +461,54 @@ design tokens. Read it before expanding Phases 0, 2, 3, and 5–7 into tickets.
   option, fully on-device and offline, with no impact on installing the app to a
   phone. Versioned JSON export is deferred to the future backlog (for web-client
   interop and portability).
+- **`ConstraintService` added to API Contracts** _(2026-07-19)_ — the layering
+  rule ("Presentation calls Services; Services call Repositories") means no
+  screen may call `ConstraintRepository` directly, so Phase 2 adds
+  `ConstraintService` as thin orchestration over it. See
+  [API Contracts](#api-contracts-internal-service--repository-interfaces).
+- **Constraint storage shape resolved: eight conceptual axes, six stored
+  dimensions** _(2026-07-19)_ — Phase 2 stores `ConstraintDimension` as six
+  values (`Time`, `Supplies`, `Location`, `Social`, `WeatherSeason`,
+  `EnergyFocus`), merging weather+seasonal and energy+focus to match the
+  design-intent doc's six-question v1 set. One row per (interest, dimension)
+  with a `UNIQUE` constraint, `ConstraintStatus` of `Unknown | None | Set`, a
+  JSON-encoded value, and `ON DELETE CASCADE` from the parent interest.
+  Resolves the former Open Question "Constraint storage shape." See
+  [Constraint](#constraint).
+- **`EnergyFocus` stored but not carded in v1** _(2026-07-19)_ — `EnergyFocus`
+  is a valid `ConstraintDimension` (and CHECK-constrained column value) from
+  Phase 2 onward, so no later migration is needed, but Phase 2 builds no
+  question card for it — matching the design-intent doc's "(later)"
+  annotation and the Recommendation Engine's deferral of energy/focus
+  evaluation to a future phase.
+- **`Interest.typeSkippedAt` added — durable Type skip** _(2026-07-19)_ —
+  mirrors the `archivedAt` pattern: a nullable timestamp marking that the user
+  deliberately answered "Not sure" to the Type question, distinct from
+  `type === null` meaning "never asked." Without it the guided-setup flow
+  would re-ask Type forever and the enrichment nudge would never stop
+  flagging the interest. Choosing an actual type clears `typeSkippedAt`.
+  `InterestService` gains a corresponding `skipType(id): Promise<Interest>`
+  method. See [API Contracts](#api-contracts-internal-service--repository-interfaces).
 
 ## Open Questions
 
 - **Per-dimension thresholds & tolerance bands** — the exact numbers that separate
   OK / soft / hard per dimension (e.g. the 5-minute session minimum, how many minutes
   under budget still counts as soft). Tuning work; settle during Phase 3.
-- **Constraint storage shape** — likely one row per dimension per interest, but the
-  concrete schema is deferred to Phase 2 when guided setup is built.
 - **What counts as "choosing"** — the exact interaction recorded as a Session (acting on
   a recommendation or an explicit "start" vs. merely opening details), so
   revealed-interest data isn't inflated by browsing. Settle when Sessions land (Phase 4).
+- **Which phase owns the `Step` entity, and which phase owns type-specific
+  Interest behavior** — Phase 1's plan placed `Step` in "Phase 2" in passing,
+  but neither the roadmap's Phase 2 cell text nor the Phase 2 phase plan builds
+  it, and Phase 3's recommendation engine needs a `Step` to recommend the next
+  incomplete Step for `StructuredLearning` interests. Related: Phase 2 lets the
+  user set `Interest.type` but implements no type-specific behavior (no-ceremony
+  Complete for `OneTimeProject`, guilt-free Conclude/Resting for
+  `UnstructuredLearning`, Steps-based completion for `StructuredLearning`, per
+  the design-intent doc's "Interest Shapes & Structured Itineraries" section).
+  Both gaps are likely owned by the same phase; resolve together before
+  Phase 3 is planned.
 
 ---
 
