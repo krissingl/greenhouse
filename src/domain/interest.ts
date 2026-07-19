@@ -10,6 +10,7 @@ export interface Interest {
   type: InterestType | null;
   state: InterestState;
   archivedAt: string | null;
+  typeSkippedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -27,7 +28,9 @@ export interface InterestFilter {
   includeArchived?: boolean;
 }
 
-export type InterestPatch = Partial<Pick<Interest, 'title' | 'type' | 'state' | 'archivedAt'>>;
+export type InterestPatch = Partial<
+  Pick<Interest, 'title' | 'type' | 'state' | 'archivedAt' | 'typeSkippedAt'>
+>;
 
 export function validateTitle(title: string): boolean {
   return title.trim().length > 0;
