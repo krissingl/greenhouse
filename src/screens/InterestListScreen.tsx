@@ -4,12 +4,19 @@ import { useCallback, useEffect, useState, type ReactElement } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import InterestListItem from '../components/InterestListItem';
-import type { Interest, InterestFilter } from '../domain/interest';
+import type { ConstraintDimension } from '../domain/constraint';
+import type { Interest, InterestFilter, InterestId } from '../domain/interest';
 import type { RootStackParamList } from '../navigation/RootNavigator';
+import { COVERED_AXES, type EnrichmentAxis } from './enrichmentQuestions';
+import { constraintService } from '../services/ConstraintService';
 import { interestService } from '../services/InterestService';
 import { useTheme } from '../theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'InterestList'>;
+
+const COVERED_DIMENSIONS: ConstraintDimension[] = COVERED_AXES.filter(
+  (axis): axis is Exclude<EnrichmentAxis, 'Type'> => axis !== 'Type',
+);
 
 type StateFilterOption = 'Backlog' | 'InProgress' | 'Complete' | 'All' | 'Archived';
 
@@ -46,6 +53,8 @@ export default function InterestListScreen({ navigation }: Props): ReactElement 
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [stateFilter, setStateFilter] = useState<StateFilterOption>('All');
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [needsEnrichmentIds, setNeedsEnrichmentIds] = useState<Set<InterestId>>(new Set());
+  const [bannerDismissed, setBannerDismissed] = useState(false);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -61,10 +70,29 @@ export default function InterestListScreen({ navigation }: Props): ReactElement 
 
       interestService
         .list(buildFilter(stateFilter, debouncedQuery))
-        .then((results) => {
-          if (!cancelled) {
-            setInterests(results);
-            setLoadError(null);
+        .then(async (results) => {
+          if (cancelled) {
+            return;
+          }
+          setInterests(results);
+          setLoadError(null);
+
+          const typeUnanswered = results
+            .filter((interest) => interest.type === null && interest.typeSkippedAt === null)
+            .map((interest) => interest.id);
+
+          try {
+            const dimensionUnanswered = await constraintService.needsEnrichment(
+              results.map((interest) => interest.id),
+              COVERED_DIMENSIONS,
+            );
+            if (!cancelled) {
+              setNeedsEnrichmentIds(new Set([...typeUnanswered, ...dimensionUnanswered]));
+            }
+          } catch {
+            if (!cancelled) {
+              setNeedsEnrichmentIds(new Set());
+            }
           }
         })
         .catch(() => {
@@ -79,6 +107,13 @@ export default function InterestListScreen({ navigation }: Props): ReactElement 
     }, [stateFilter, debouncedQuery]),
   );
 
+  const handleBannerPress = () => {
+    const targetId = interests.find((interest) => needsEnrichmentIds.has(interest.id))?.id;
+    if (targetId) {
+      navigation.navigate('InterestDetail', { interestId: targetId });
+    }
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <TextInput
@@ -86,10 +121,7 @@ export default function InterestListScreen({ navigation }: Props): ReactElement 
         onChangeText={setSearchInput}
         placeholder="Search interests"
         placeholderTextColor={theme.colors.textTertiary}
-        style={[
-          styles.searchInput,
-          { color: theme.colors.text, borderColor: theme.colors.border },
-        ]}
+        style={[styles.searchInput, { color: theme.colors.text, borderColor: theme.colors.border }]}
       />
       <View style={styles.filterRow}>
         {STATE_FILTER_OPTIONS.map((option) => (
@@ -126,6 +158,18 @@ export default function InterestListScreen({ navigation }: Props): ReactElement 
         >
           {loadError}
         </Text>
+      )}
+      {!bannerDismissed && needsEnrichmentIds.size > 0 && (
+        <View style={[styles.banner, { backgroundColor: theme.colors.primaryContainer }]}>
+          <Pressable style={styles.bannerText} onPress={handleBannerPress}>
+            <Text style={{ color: theme.colors.text }}>
+              Got a minute? {needsEnrichmentIds.size} seeds could tell me more
+            </Text>
+          </Pressable>
+          <Pressable accessibilityLabel="Dismiss" onPress={() => setBannerDismissed(true)}>
+            <Text style={{ color: theme.colors.textSecondary }}>✕</Text>
+          </Pressable>
+        </View>
       )}
       <FlatList
         data={interests}
@@ -180,6 +224,19 @@ const styles = StyleSheet.create({
     gap: 8,
     marginHorizontal: 16,
     marginTop: 8,
+  },
+  banner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginHorizontal: 16,
+    marginTop: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  bannerText: {
+    flex: 1,
   },
   filterChip: {
     paddingHorizontal: 10,
