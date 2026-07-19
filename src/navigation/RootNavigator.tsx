@@ -2,10 +2,12 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { ReactElement } from 'react';
 
-import HomeScreen from '../screens/HomeScreen';
+import InterestListScreen from '../screens/InterestListScreen';
 
 export type RootStackParamList = {
-  Home: undefined;
+  InterestList: undefined;
+  CreateInterest: undefined;
+  InterestDetail: { interestId: string };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -13,8 +15,12 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 export default function RootNavigator(): ReactElement {
   return (
     <NavigationContainer>
-      <Stack.Navigator initialRouteName="Home">
-        <Stack.Screen name="Home" component={HomeScreen} />
+      <Stack.Navigator initialRouteName="InterestList">
+        <Stack.Screen
+          name="InterestList"
+          component={InterestListScreen}
+          options={{ title: 'Interests' }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );
