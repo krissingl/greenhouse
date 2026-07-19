@@ -1,26 +1,64 @@
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useCallback, useState, type ReactElement } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useState, type ReactElement } from 'react';
+import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import InterestListItem from '../components/InterestListItem';
-import type { Interest } from '../domain/interest';
+import type { Interest, InterestFilter } from '../domain/interest';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { interestService } from '../services/InterestService';
 import { useTheme } from '../theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'InterestList'>;
 
+type StateFilterOption = 'Backlog' | 'InProgress' | 'Complete' | 'All' | 'Archived';
+
+const STATE_FILTER_OPTIONS: StateFilterOption[] = [
+  'All',
+  'Backlog',
+  'InProgress',
+  'Complete',
+  'Archived',
+];
+
+const SEARCH_DEBOUNCE_MS = 300;
+
+function buildFilter(stateFilter: StateFilterOption, debouncedQuery: string): InterestFilter {
+  const filter: InterestFilter = {};
+
+  if (debouncedQuery.trim().length > 0) {
+    filter.query = debouncedQuery.trim();
+  }
+
+  if (stateFilter === 'Archived') {
+    filter.includeArchived = true;
+  } else if (stateFilter !== 'All') {
+    filter.state = stateFilter;
+  }
+
+  return filter;
+}
+
 export default function InterestListScreen({ navigation }: Props): ReactElement {
   const theme = useTheme();
   const [interests, setInterests] = useState<Interest[]>([]);
-  const [showArchived, setShowArchived] = useState(false);
+  const [searchInput, setSearchInput] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [stateFilter, setStateFilter] = useState<StateFilterOption>('All');
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setDebouncedQuery(searchInput);
+    }, SEARCH_DEBOUNCE_MS);
+
+    return () => clearTimeout(timeout);
+  }, [searchInput]);
 
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
 
-      interestService.list({ includeArchived: showArchived }).then((results) => {
+      interestService.list(buildFilter(stateFilter, debouncedQuery)).then((results) => {
         if (!cancelled) {
           setInterests(results);
         }
@@ -29,16 +67,45 @@ export default function InterestListScreen({ navigation }: Props): ReactElement 
       return () => {
         cancelled = true;
       };
-    }, [showArchived]),
+    }, [stateFilter, debouncedQuery]),
   );
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <Pressable onPress={() => setShowArchived((current) => !current)} style={styles.filterToggle}>
-        <Text style={{ color: theme.colors.primary, fontSize: theme.typography.bodySmall.size }}>
-          {showArchived ? 'Hide Archived' : 'Show Archived'}
-        </Text>
-      </Pressable>
+      <TextInput
+        value={searchInput}
+        onChangeText={setSearchInput}
+        placeholder="Search interests"
+        placeholderTextColor={theme.colors.textTertiary}
+        style={[
+          styles.searchInput,
+          { color: theme.colors.text, borderColor: theme.colors.border },
+        ]}
+      />
+      <View style={styles.filterRow}>
+        {STATE_FILTER_OPTIONS.map((option) => (
+          <Pressable
+            key={option}
+            onPress={() => setStateFilter(option)}
+            style={[
+              styles.filterChip,
+              {
+                backgroundColor:
+                  stateFilter === option ? theme.colors.primary : theme.colors.surfaceVariant,
+              },
+            ]}
+          >
+            <Text
+              style={{
+                color: stateFilter === option ? theme.colors.textOnPrimary : theme.colors.text,
+                fontSize: theme.typography.caption.size,
+              }}
+            >
+              {option}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
       <FlatList
         data={interests}
         keyExtractor={(item) => item.id}
@@ -78,15 +145,30 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  searchInput: {
+    marginHorizontal: 16,
+    marginTop: 8,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  filterRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginHorizontal: 16,
+    marginTop: 8,
+  },
+  filterChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
   emptyContent: {
     flexGrow: 1,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  filterToggle: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    alignSelf: 'flex-end',
   },
   addButton: {
     position: 'absolute',
