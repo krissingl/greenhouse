@@ -1,6 +1,7 @@
 import type {
   Interest,
   InterestFilter,
+  InterestPatch,
   InterestState,
   InterestType,
   NewInterest,
@@ -95,7 +96,7 @@ export class InterestRepository extends BaseRepository {
     });
   }
 
-  async update(id: string, patch: Partial<Interest>): Promise<Interest> {
+  async update(id: string, patch: InterestPatch): Promise<Interest> {
     return this.withConnection((db) => {
       const existingRow = db.getFirstSync<InterestRow>('SELECT * FROM interests WHERE id = ?;', [
         id,

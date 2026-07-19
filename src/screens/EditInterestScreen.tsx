@@ -18,17 +18,26 @@ export default function EditInterestScreen({ route, navigation }: Props): ReactE
   const [state, setState] = useState<InterestState>('Backlog');
   const [touched, setTouched] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
-    interestService.get(interestId).then((interest) => {
-      if (!cancelled && interest) {
-        setTitle(interest.title);
-        setState(interest.state);
-        setLoaded(true);
-      }
-    });
+    interestService
+      .get(interestId)
+      .then((interest) => {
+        if (!cancelled && interest) {
+          setTitle(interest.title);
+          setState(interest.state);
+          setLoaded(true);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setLoadError('Could not load this interest. Please try again.');
+        }
+      });
 
     return () => {
       cancelled = true;
@@ -44,10 +53,25 @@ export default function EditInterestScreen({ route, navigation }: Props): ReactE
       return;
     }
 
-    await interestService.update(interestId, { title });
-    await interestService.setState(interestId, state);
-    navigation.goBack();
+    try {
+      setSaveError(null);
+      await interestService.update(interestId, { title });
+      await interestService.setState(interestId, state);
+      navigation.goBack();
+    } catch {
+      setSaveError('Could not save this interest. Please try again.');
+    }
   };
+
+  if (loadError) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <Text style={{ color: theme.colors.error, fontSize: theme.typography.body.size }}>
+          {loadError}
+        </Text>
+      </View>
+    );
+  }
 
   if (!loaded) {
     return <View style={[styles.container, { backgroundColor: theme.colors.background }]} />;
@@ -93,6 +117,10 @@ export default function EditInterestScreen({ route, navigation }: Props): ReactE
           </Pressable>
         ))}
       </View>
+
+      {saveError && (
+        <Text style={{ color: theme.colors.error, marginTop: theme.spacing.xs }}>{saveError}</Text>
+      )}
 
       <Pressable
         onPress={handleSave}

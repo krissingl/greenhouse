@@ -45,6 +45,7 @@ export default function InterestListScreen({ navigation }: Props): ReactElement 
   const [searchInput, setSearchInput] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [stateFilter, setStateFilter] = useState<StateFilterOption>('All');
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -58,11 +59,19 @@ export default function InterestListScreen({ navigation }: Props): ReactElement 
     useCallback(() => {
       let cancelled = false;
 
-      interestService.list(buildFilter(stateFilter, debouncedQuery)).then((results) => {
-        if (!cancelled) {
-          setInterests(results);
-        }
-      });
+      interestService
+        .list(buildFilter(stateFilter, debouncedQuery))
+        .then((results) => {
+          if (!cancelled) {
+            setInterests(results);
+            setLoadError(null);
+          }
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setLoadError('Could not load interests. Please try again.');
+          }
+        });
 
       return () => {
         cancelled = true;
@@ -106,6 +115,18 @@ export default function InterestListScreen({ navigation }: Props): ReactElement 
           </Pressable>
         ))}
       </View>
+      {loadError && (
+        <Text
+          style={{
+            color: theme.colors.error,
+            fontSize: theme.typography.caption.size,
+            marginHorizontal: 16,
+            marginTop: 8,
+          }}
+        >
+          {loadError}
+        </Text>
+      )}
       <FlatList
         data={interests}
         keyExtractor={(item) => item.id}

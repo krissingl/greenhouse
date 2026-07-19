@@ -119,6 +119,14 @@ describe('InterestRepository', () => {
       const refetched = await repository.findById(created.id);
       expect(refetched?.title).toBe('Learn viola');
     });
+
+    it('leaves createdAt untouched', async () => {
+      const created = await repository.insert({ title: 'Learn violin' });
+
+      const updated = await repository.update(created.id, { title: 'Learn viola' });
+
+      expect(updated.createdAt).toBe(created.createdAt);
+    });
   });
 
   describe('remove', () => {

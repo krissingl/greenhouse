@@ -13,6 +13,7 @@ export default function CreateInterestScreen({ navigation }: Props): ReactElemen
   const theme = useTheme();
   const [title, setTitle] = useState('');
   const [touched, setTouched] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const isValid = validateTitle(title);
   const showError = touched && !isValid;
@@ -24,8 +25,13 @@ export default function CreateInterestScreen({ navigation }: Props): ReactElemen
       return;
     }
 
-    await interestService.create({ title });
-    navigation.goBack();
+    try {
+      setSaveError(null);
+      await interestService.create({ title });
+      navigation.goBack();
+    } catch {
+      setSaveError('Could not save this interest. Please try again.');
+    }
   };
 
   return (
@@ -50,6 +56,9 @@ export default function CreateInterestScreen({ navigation }: Props): ReactElemen
         <Text style={{ color: theme.colors.error, marginTop: theme.spacing.xs }}>
           Title can&apos;t be empty.
         </Text>
+      )}
+      {saveError && (
+        <Text style={{ color: theme.colors.error, marginTop: theme.spacing.xs }}>{saveError}</Text>
       )}
       <Pressable
         onPress={handleSave}

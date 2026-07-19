@@ -1,5 +1,12 @@
 import { assertValidTitle } from '../domain/interest';
-import type { Interest, InterestFilter, InterestId, InterestState, NewInterest } from '../domain/interest';
+import type {
+  Interest,
+  InterestFilter,
+  InterestId,
+  InterestPatch,
+  InterestState,
+  NewInterest,
+} from '../domain/interest';
 import { InterestRepository } from '../repositories/InterestRepository';
 
 export class InterestService {
@@ -21,7 +28,7 @@ export class InterestService {
     });
   }
 
-  async update(id: InterestId, patch: Partial<Interest>): Promise<Interest> {
+  async update(id: InterestId, patch: InterestPatch): Promise<Interest> {
     if (patch.title !== undefined) {
       assertValidTitle(patch.title);
     }

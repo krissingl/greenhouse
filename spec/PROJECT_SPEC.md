@@ -1,6 +1,6 @@
 # Greenhouse — Project Spec
 
-_Last updated: 2026-07-16 | Status: ACTIVE — single source of truth_
+_Last updated: 2026-07-19 | Status: ACTIVE — single source of truth_
 
 > This is the living specification for Greenhouse and the authoritative source
 > for engineering decisions. The documents under `docs/` (PRD, ADRs, domain
@@ -302,10 +302,10 @@ often builds energy along the way.
 interface InterestService {
   create(input: { title: string } & Partial<InterestDetails>): Promise<Interest>;
   get(id: InterestId): Promise<Interest | null>;
-  list(filter?: { state?: InterestState; type?: InterestType; query?: string }): Promise<Interest[]>;
-  update(id: InterestId, patch: Partial<InterestDetails>): Promise<Interest>;
+  list(filter?: { state?: InterestState; type?: InterestType; query?: string; includeArchived?: boolean }): Promise<Interest[]>;
+  update(id: InterestId, patch: Partial<Pick<Interest, 'title' | 'type' | 'state' | 'archivedAt'>>): Promise<Interest>;
   setState(id: InterestId, state: InterestState): Promise<Interest>;
-  archive(id: InterestId): Promise<void>;   // soft-remove; delete is a separate hard op
+  archive(id: InterestId): Promise<Interest>;   // soft-remove (sets archivedAt); delete is a separate hard op
   unarchive(id: InterestId): Promise<Interest>; // clears archivedAt; inverse of archive
   delete(id: InterestId): Promise<void>;    // permanent hard removal; distinct from archive
 }

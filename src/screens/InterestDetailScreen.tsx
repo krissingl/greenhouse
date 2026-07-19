@@ -14,22 +14,48 @@ export default function InterestDetailScreen({ route, navigation }: Props): Reac
   const theme = useTheme();
   const { interestId } = route.params;
   const [interest, setInterest] = useState<Interest | null | undefined>(undefined);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
 
-      interestService.get(interestId).then((result) => {
-        if (!cancelled) {
-          setInterest(result);
-        }
-      });
+      interestService
+        .get(interestId)
+        .then((result) => {
+          if (!cancelled) {
+            setInterest(result);
+            setLoadError(null);
+          }
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setLoadError('Could not load this interest. Please try again.');
+          }
+        });
 
       return () => {
         cancelled = true;
       };
     }, [interestId]),
   );
+
+  if (loadError) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <Text style={{ color: theme.colors.error, fontSize: theme.typography.body.size }}>
+          {loadError}
+        </Text>
+        <Pressable
+          onPress={() => navigation.navigate('InterestList')}
+          style={[styles.button, { backgroundColor: theme.colors.primary }]}
+        >
+          <Text style={{ color: theme.colors.textOnPrimary }}>Back to list</Text>
+        </Pressable>
+      </View>
+    );
+  }
 
   if (interest === undefined) {
     return <View style={[styles.container, { backgroundColor: theme.colors.background }]} />;
@@ -54,12 +80,17 @@ export default function InterestDetailScreen({ route, navigation }: Props): Reac
   const isArchived = interest.archivedAt !== null;
 
   const handleArchiveToggle = async () => {
-    if (isArchived) {
-      const updated = await interestService.unarchive(interestId);
-      setInterest(updated);
-    } else {
-      await interestService.archive(interestId);
-      navigation.navigate('InterestList');
+    try {
+      setActionError(null);
+      if (isArchived) {
+        const updated = await interestService.unarchive(interestId);
+        setInterest(updated);
+      } else {
+        await interestService.archive(interestId);
+        navigation.navigate('InterestList');
+      }
+    } catch {
+      setActionError('Could not update this interest. Please try again.');
     }
   };
 
@@ -70,8 +101,13 @@ export default function InterestDetailScreen({ route, navigation }: Props): Reac
         text: 'Delete',
         style: 'destructive',
         onPress: async () => {
-          await interestService.delete(interestId);
-          navigation.navigate('InterestList');
+          try {
+            setActionError(null);
+            await interestService.delete(interestId);
+            navigation.navigate('InterestList');
+          } catch {
+            setActionError('Could not delete this interest. Please try again.');
+          }
         },
       },
     ]);
@@ -92,6 +128,12 @@ export default function InterestDetailScreen({ route, navigation }: Props): Reac
         Created: {interest.createdAt}
       </Text>
       <Text style={{ color: theme.colors.textTertiary }}>Updated: {interest.updatedAt}</Text>
+
+      {actionError && (
+        <Text style={{ color: theme.colors.error, marginTop: theme.spacing.sm }}>
+          {actionError}
+        </Text>
+      )}
 
       <Pressable
         onPress={() => navigation.navigate('EditInterest', { interestId })}

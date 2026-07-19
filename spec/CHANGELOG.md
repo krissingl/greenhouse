@@ -1,5 +1,25 @@
 # greenhouse — Changelog
 
+## [2026-07-19] — Reconciled InterestService/Repository contracts with Phase 1 implementation
+- Triggered by: Phase 1 review (code-reviewer-spec findings), disposed as fix
+- Context: The implemented `InterestService`/`InterestRepository` diverged from the
+  API Contracts section in three ways surfaced by review: `archive` was declared as
+  `Promise<void>` but implemented as `Promise<Interest>`; `update`'s patch type was
+  declared as `Partial<InterestDetails>` (type only) but Ticket #18 requires title
+  edits via `update`, and the implementation (post title-patch-corruption fix, see
+  below) accepts `title`/`type`/`state`/`archivedAt`; `list`'s filter omitted
+  `includeArchived`, which Tickets #19/#20 require. Direction: update the spec to
+  match the implementation — the ticket acceptance criteria mandate this behavior.
+- Changed: `InterestService.archive` now documented as `Promise<Interest>`.
+- Changed: `InterestService.update`'s patch type narrowed to
+  `Partial<Pick<Interest, 'title' | 'type' | 'state' | 'archivedAt'>>`, matching the
+  narrowed `InterestPatch` type introduced in `src/domain/interest.ts` (a quality
+  fix closing a latent bug where an unrestricted `Partial<Interest>` patch could
+  silently overwrite `createdAt`).
+- Changed: `InterestService.list`'s filter parameter now includes
+  `includeArchived?: boolean`, matching `InterestFilter` and the default-hides-archived
+  behavior implemented in Ticket #14 and exercised by Tickets #19/#20.
+
 ## [2026-07-18] — Closed InterestService contract gap (delete/unarchive)
 - Triggered by: Phase 1 phase plan (flagged contract gap)
 - Context: `InterestService` declared `archive` (soft-remove) but had no `delete`

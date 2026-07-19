@@ -27,6 +27,8 @@ export interface InterestFilter {
   includeArchived?: boolean;
 }
 
+export type InterestPatch = Partial<Pick<Interest, 'title' | 'type' | 'state' | 'archivedAt'>>;
+
 export function validateTitle(title: string): boolean {
   return title.trim().length > 0;
 }
