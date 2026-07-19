@@ -3,12 +3,14 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { ReactElement } from 'react';
 
 import CreateInterestScreen from '../screens/CreateInterestScreen';
+import InterestDetailScreen from '../screens/InterestDetailScreen';
 import InterestListScreen from '../screens/InterestListScreen';
 
 export type RootStackParamList = {
   InterestList: undefined;
   CreateInterest: undefined;
   InterestDetail: { interestId: string };
+  EditInterest: { interestId: string };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -26,6 +28,11 @@ export default function RootNavigator(): ReactElement {
           name="CreateInterest"
           component={CreateInterestScreen}
           options={{ title: 'New Interest' }}
+        />
+        <Stack.Screen
+          name="InterestDetail"
+          component={InterestDetailScreen}
+          options={{ title: 'Interest' }}
         />
       </Stack.Navigator>
     </NavigationContainer>
