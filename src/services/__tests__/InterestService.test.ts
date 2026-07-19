@@ -9,6 +9,7 @@ function makeInterest(overrides: Partial<Interest> = {}): Interest {
     type: null,
     state: 'Backlog',
     archivedAt: null,
+    typeSkippedAt: null,
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
     ...overrides,
@@ -159,6 +160,20 @@ describe('InterestService', () => {
       await service.delete('interest-1');
 
       expect(repository.remove).toHaveBeenCalledWith('interest-1');
+    });
+  });
+
+  describe('skipType', () => {
+    it('calls repository.update with a null type and a typeSkippedAt timestamp', async () => {
+      const updated = makeInterest({ type: null, typeSkippedAt: '2026-01-02T00:00:00.000Z' });
+      repository.update.mockResolvedValue(updated);
+
+      await service.skipType('interest-1');
+
+      expect(repository.update).toHaveBeenCalledWith('interest-1', {
+        type: null,
+        typeSkippedAt: expect.any(String),
+      });
     });
   });
 });

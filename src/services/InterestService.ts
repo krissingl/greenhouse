@@ -50,6 +50,10 @@ export class InterestService {
   async delete(id: InterestId): Promise<void> {
     return this.repository.remove(id);
   }
+
+  async skipType(id: InterestId): Promise<Interest> {
+    return this.repository.update(id, { type: null, typeSkippedAt: new Date().toISOString() });
+  }
 }
 
 export const interestService = new InterestService();
