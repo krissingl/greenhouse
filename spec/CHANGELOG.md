@@ -1,5 +1,18 @@
 # greenhouse — Changelog
 
+## [2026-07-18] — Closed InterestService contract gap (delete/unarchive)
+- Triggered by: Phase 1 phase plan (flagged contract gap)
+- Context: `InterestService` declared `archive` (soft-remove) but had no `delete`
+  (permanent hard removal) or `unarchive` (recover from archive), despite both being
+  required by the roadmap ("archive or delete interests") and the "Archive =
+  soft-delete flag" resolved decision (archived interests are recoverable; delete is
+  a separate, permanent hard removal).
+- Changed: Added `unarchive(id: InterestId): Promise<Interest>` and
+  `delete(id: InterestId): Promise<void>` to `InterestService` in the API Contracts
+  section, next to `archive`. `delete` maps to the existing `InterestRepository.remove()`
+  — no repository change needed. This is a first-pass-draft refinement per the
+  section's own note, not a scope change.
+
 ## [2026-07-16] — Wired seed design tokens into the workflow
 - Triggered by: user (catchAll theme files)
 - Context: catchAll/light_theme.ts + dark_theme.ts (committed) were orphaned — no

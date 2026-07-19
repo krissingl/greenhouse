@@ -306,6 +306,8 @@ interface InterestService {
   update(id: InterestId, patch: Partial<InterestDetails>): Promise<Interest>;
   setState(id: InterestId, state: InterestState): Promise<Interest>;
   archive(id: InterestId): Promise<void>;   // soft-remove; delete is a separate hard op
+  unarchive(id: InterestId): Promise<Interest>; // clears archivedAt; inverse of archive
+  delete(id: InterestId): Promise<void>;    // permanent hard removal; distinct from archive
 }
 
 interface RecommendationService {
