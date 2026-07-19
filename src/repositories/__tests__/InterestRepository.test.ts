@@ -35,6 +35,11 @@ describe('InterestRepository', () => {
 
       expect(interest.type).toBe('StructuredLearning');
     });
+
+    it('defaults typeSkippedAt to null', async () => {
+      const interest = await repository.insert({ title: 'Learn violin' });
+      expect(interest.typeSkippedAt).toBeNull();
+    });
   });
 
   describe('findById', () => {
@@ -126,6 +131,17 @@ describe('InterestRepository', () => {
       const updated = await repository.update(created.id, { title: 'Learn viola' });
 
       expect(updated.createdAt).toBe(created.createdAt);
+    });
+
+    it('round-trips typeSkippedAt', async () => {
+      const created = await repository.insert({ title: 'Learn violin' });
+      const skippedAt = new Date().toISOString();
+
+      const updated = await repository.update(created.id, { typeSkippedAt: skippedAt });
+      expect(updated.typeSkippedAt).toBe(skippedAt);
+
+      const refetched = await repository.findById(created.id);
+      expect(refetched?.typeSkippedAt).toBe(skippedAt);
     });
   });
 
