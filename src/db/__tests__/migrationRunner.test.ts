@@ -19,13 +19,32 @@ describe('runMigrations', () => {
     const rows = db.getAllSync<{ id: number; name: string }>(
       'SELECT id, name FROM schema_migrations ORDER BY id;',
     );
-    expect(rows).toHaveLength(2);
     expect(rows[1]).toMatchObject({ id: 2, name: 'create_interests' });
 
     const tableRow = db.getFirstSync<{ name: string }>(
       "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'interests';",
     );
     expect(tableRow).not.toBeNull();
+  });
+
+  it('applies migrations 003 and 004 cleanly on top of 001/002, in order', () => {
+    const db = getDatabase();
+    runMigrations(db);
+
+    const rows = db.getAllSync<{ id: number; name: string }>(
+      'SELECT id, name FROM schema_migrations ORDER BY id;',
+    );
+    expect(rows).toHaveLength(4);
+    expect(rows[2]).toMatchObject({ id: 3, name: 'create_constraints' });
+    expect(rows[3]).toMatchObject({ id: 4, name: 'add_type_skipped_at_to_interests' });
+
+    const constraintsTableRow = db.getFirstSync<{ name: string }>(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'constraints';",
+    );
+    expect(constraintsTableRow).not.toBeNull();
+
+    const columns = db.getAllSync<{ name: string }>('PRAGMA table_info(interests);');
+    expect(columns.some((column) => column.name === 'type_skipped_at')).toBe(true);
   });
 
   it('is idempotent — running the full migration set twice does not fail or duplicate records', () => {
@@ -37,6 +56,6 @@ describe('runMigrations', () => {
     }).not.toThrow();
 
     const rows = db.getAllSync<{ id: number }>('SELECT id FROM schema_migrations;');
-    expect(rows).toHaveLength(2);
+    expect(rows).toHaveLength(4);
   });
 });
