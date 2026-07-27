@@ -1,3 +1,5 @@
+import * as Crypto from 'expo-crypto';
+
 import type {
   Interest,
   InterestFilter,
@@ -36,7 +38,7 @@ export class InterestRepository extends BaseRepository {
   async insert(newInterest: NewInterest): Promise<Interest> {
     return this.withConnection((db) => {
       const now = new Date().toISOString();
-      const id = crypto.randomUUID();
+      const id = Crypto.randomUUID();
       const type = newInterest.type ?? null;
 
       db.runSync(

@@ -1,3 +1,4 @@
+import * as Crypto from 'expo-crypto';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 import type {
@@ -108,7 +109,7 @@ export class ConstraintRepository extends BaseRepository {
       return;
     }
 
-    const id = crypto.randomUUID();
+    const id = Crypto.randomUUID();
     db.runSync(
       `INSERT INTO constraints (id, interest_id, dimension, status, value, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?);`,
