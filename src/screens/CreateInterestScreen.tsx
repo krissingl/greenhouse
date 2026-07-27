@@ -40,7 +40,7 @@ export default function CreateInterestScreen({ navigation }: Props): ReactElemen
         value={title}
         onChangeText={setTitle}
         onBlur={() => setTouched(true)}
-        placeholder="What do you want in your life?"
+        placeholder="What do you want to do?"
         placeholderTextColor={theme.colors.textTertiary}
         autoFocus
         style={[

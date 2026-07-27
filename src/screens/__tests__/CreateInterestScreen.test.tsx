@@ -28,7 +28,7 @@ describe('CreateInterestScreen', () => {
     const { getByPlaceholderText, getByText, findByText } = await renderScreen(navigation);
 
     await act(async () => {
-      fireEvent.changeText(getByPlaceholderText('What do you want in your life?'), 'Learn violin');
+      fireEvent.changeText(getByPlaceholderText('What do you want to do?'), 'Learn violin');
     });
 
     await act(async () => {
