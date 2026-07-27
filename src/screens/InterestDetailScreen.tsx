@@ -25,6 +25,16 @@ interface ChipDisplay {
   answered: boolean;
 }
 
+function formatDisplayDate(iso: string): string {
+  return new Date(iso).toLocaleString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
 function chipDisplayFor(
   axis: EnrichmentAxis,
   interest: Interest,
@@ -170,9 +180,11 @@ export default function InterestDetailScreen({ route, navigation }: Props): Reac
         Type: {interest.type ?? 'not set'}
       </Text>
       <Text style={{ color: theme.colors.textTertiary, marginTop: theme.spacing.sm }}>
-        Created: {interest.createdAt}
+        Created: {formatDisplayDate(interest.createdAt)}
       </Text>
-      <Text style={{ color: theme.colors.textTertiary }}>Updated: {interest.updatedAt}</Text>
+      <Text style={{ color: theme.colors.textTertiary }}>
+        Updated: {formatDisplayDate(interest.updatedAt)}
+      </Text>
 
       <Text
         style={{
