@@ -8,6 +8,7 @@ import CreateInterestScreen from '../CreateInterestScreen';
 async function renderScreen(navigation: {
   goBack: jest.Mock;
   navigate: jest.Mock;
+  replace: jest.Mock;
 }): Promise<ReturnType<typeof render>> {
   const props = {
     navigation,
@@ -24,7 +25,7 @@ async function renderScreen(navigation: {
 describe('CreateInterestScreen', () => {
   it('shows inline feedback and does not navigate away when create fails', async () => {
     jest.spyOn(interestService, 'create').mockRejectedValueOnce(new Error('boom'));
-    const navigation = { goBack: jest.fn(), navigate: jest.fn() };
+    const navigation = { goBack: jest.fn(), navigate: jest.fn(), replace: jest.fn() };
 
     const { getByPlaceholderText, getByText, findByText } = await renderScreen(navigation);
 
@@ -39,6 +40,7 @@ describe('CreateInterestScreen', () => {
     expect(await findByText('Could not save this interest. Please try again.')).toBeTruthy();
     expect(navigation.goBack).not.toHaveBeenCalled();
     expect(navigation.navigate).not.toHaveBeenCalled();
+    expect(navigation.replace).not.toHaveBeenCalled();
   });
 
   it('routes into the guided setup flow for the newly created interest on save', async () => {
@@ -52,7 +54,7 @@ describe('CreateInterestScreen', () => {
       createdAt: '2026-07-01T00:00:00.000Z',
       updatedAt: '2026-07-01T00:00:00.000Z',
     });
-    const navigation = { goBack: jest.fn(), navigate: jest.fn() };
+    const navigation = { goBack: jest.fn(), navigate: jest.fn(), replace: jest.fn() };
 
     const { getByPlaceholderText, getByText } = await renderScreen(navigation);
 
@@ -64,7 +66,8 @@ describe('CreateInterestScreen', () => {
       fireEvent.press(getByText('Save'));
     });
 
-    expect(navigation.navigate).toHaveBeenCalledWith('GuidedSetup', { interestId: 'interest-1' });
+    expect(navigation.replace).toHaveBeenCalledWith('GuidedSetup', { interestId: 'interest-1' });
+    expect(navigation.navigate).not.toHaveBeenCalled();
     expect(navigation.goBack).not.toHaveBeenCalled();
   });
 });

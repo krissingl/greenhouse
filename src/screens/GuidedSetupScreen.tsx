@@ -78,7 +78,7 @@ export default function GuidedSetupScreen({ route, navigation }: Props): ReactEl
     };
   }, [interestId]);
 
-  const handleClose = () => navigation.navigate('InterestDetail', { interestId });
+  const handleClose = () => navigation.replace('InterestDetail', { interestId });
 
   // Single-card mode edits exactly the requested axis; sequential mode pages through
   // every covered axis, so Back/Forward have somewhere to go.
@@ -94,7 +94,7 @@ export default function GuidedSetupScreen({ route, navigation }: Props): ReactEl
 
   useEffect(() => {
     if (!startDimension && index === null && interest && constraints && initialIndex === -1) {
-      navigation.navigate('InterestDetail', { interestId });
+      navigation.replace('InterestDetail', { interestId });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [startDimension, interest, constraints, initialIndex, index]);
@@ -136,7 +136,7 @@ export default function GuidedSetupScreen({ route, navigation }: Props): ReactEl
       return;
     }
     if (effectiveIndex === 0) {
-      navigation.navigate('InterestDetail', { interestId });
+      navigation.replace('InterestDetail', { interestId });
     } else {
       setIndex(effectiveIndex - 1);
     }
@@ -147,7 +147,7 @@ export default function GuidedSetupScreen({ route, navigation }: Props): ReactEl
       return;
     }
     if (effectiveIndex === sequence.length - 1) {
-      navigation.navigate('InterestDetail', { interestId });
+      navigation.replace('InterestDetail', { interestId });
     } else {
       setIndex(effectiveIndex + 1);
     }

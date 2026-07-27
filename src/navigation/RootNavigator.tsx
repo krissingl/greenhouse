@@ -2,6 +2,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { ReactElement } from 'react';
 
+import HomeHeaderButton from './HomeHeaderButton';
 import CreateInterestScreen from '../screens/CreateInterestScreen';
 import EditInterestScreen from '../screens/EditInterestScreen';
 import type { EnrichmentAxis } from '../screens/enrichmentQuestions';
@@ -31,22 +32,34 @@ export default function RootNavigator(): ReactElement {
         <Stack.Screen
           name="CreateInterest"
           component={CreateInterestScreen}
-          options={{ title: 'New Interest' }}
+          options={({ navigation }) => ({
+            title: 'New Interest',
+            headerRight: () => <HomeHeaderButton navigation={navigation} />,
+          })}
         />
         <Stack.Screen
           name="InterestDetail"
           component={InterestDetailScreen}
-          options={{ title: 'Interest' }}
+          options={({ navigation }) => ({
+            title: 'Interest',
+            headerRight: () => <HomeHeaderButton navigation={navigation} />,
+          })}
         />
         <Stack.Screen
           name="EditInterest"
           component={EditInterestScreen}
-          options={{ title: 'Edit Interest' }}
+          options={({ navigation }) => ({
+            title: 'Edit Interest',
+            headerRight: () => <HomeHeaderButton navigation={navigation} />,
+          })}
         />
         <Stack.Screen
           name="GuidedSetup"
           component={GuidedSetupScreen}
-          options={{ title: 'A few more details' }}
+          options={({ navigation }) => ({
+            title: 'A few more details',
+            headerRight: () => <HomeHeaderButton navigation={navigation} />,
+          })}
         />
       </Stack.Navigator>
     </NavigationContainer>

@@ -57,7 +57,7 @@ function makeConstraints(
 }
 
 async function renderScreen(
-  navigation: { navigate: jest.Mock },
+  navigation: { navigate: jest.Mock; replace: jest.Mock },
   params: { interestId: string; startDimension?: 'Type' | ConstraintDimension },
 ): Promise<ReturnType<typeof render>> {
   const props = {
@@ -93,7 +93,7 @@ describe('GuidedSetupScreen', () => {
       createdAt: '2026-07-01T00:00:00.000Z',
       updatedAt: '2026-07-01T00:00:00.000Z',
     });
-    const navigation = { navigate: jest.fn() };
+    const navigation = { navigate: jest.fn(), replace: jest.fn() };
 
     const { findByText } = await renderScreen(navigation, {
       interestId: 'interest-1',
@@ -108,7 +108,7 @@ describe('GuidedSetupScreen', () => {
       status: 'Set',
       value: '15-30',
     });
-    expect(navigation.navigate).not.toHaveBeenCalledWith('InterestDetail', {
+    expect(navigation.replace).not.toHaveBeenCalledWith('InterestDetail', {
       interestId: 'interest-1',
     });
 
@@ -116,7 +116,7 @@ describe('GuidedSetupScreen', () => {
       fireEvent.press(await findByText('Next'));
     });
 
-    expect(navigation.navigate).toHaveBeenCalledWith('InterestDetail', {
+    expect(navigation.replace).toHaveBeenCalledWith('InterestDetail', {
       interestId: 'interest-1',
     });
   });
@@ -125,7 +125,7 @@ describe('GuidedSetupScreen', () => {
     jest.spyOn(interestService, 'get').mockResolvedValue(makeInterest());
     jest.spyOn(constraintService, 'listForInterest').mockResolvedValue(makeConstraints());
     const answerSpy = jest.spyOn(constraintService, 'answer');
-    const navigation = { navigate: jest.fn() };
+    const navigation = { navigate: jest.fn(), replace: jest.fn() };
 
     const { findByText } = await renderScreen(navigation, {
       interestId: 'interest-1',
@@ -137,7 +137,7 @@ describe('GuidedSetupScreen', () => {
     });
 
     expect(answerSpy).not.toHaveBeenCalled();
-    expect(navigation.navigate).toHaveBeenCalledWith('InterestDetail', {
+    expect(navigation.replace).toHaveBeenCalledWith('InterestDetail', {
       interestId: 'interest-1',
     });
   });
@@ -157,7 +157,7 @@ describe('GuidedSetupScreen', () => {
     jest
       .spyOn(interestService, 'skipType')
       .mockResolvedValue(makeInterest({ type: null, typeSkippedAt: '2026-07-02T00:00:00.000Z' }));
-    const navigation = { navigate: jest.fn() };
+    const navigation = { navigate: jest.fn(), replace: jest.fn() };
 
     const { findByText } = await renderScreen(navigation, { interestId: 'interest-1' });
 
@@ -179,7 +179,7 @@ describe('GuidedSetupScreen', () => {
         Supplies: { status: 'None' },
       }),
     );
-    const navigation = { navigate: jest.fn() };
+    const navigation = { navigate: jest.fn(), replace: jest.fn() };
 
     const { findByText } = await renderScreen(navigation, { interestId: 'interest-1' });
 
@@ -191,7 +191,7 @@ describe('GuidedSetupScreen', () => {
       .spyOn(interestService, 'get')
       .mockResolvedValue(makeInterest({ type: null, typeSkippedAt: '2026-07-02T00:00:00.000Z' }));
     jest.spyOn(constraintService, 'listForInterest').mockResolvedValue(makeConstraints());
-    const navigation = { navigate: jest.fn() };
+    const navigation = { navigate: jest.fn(), replace: jest.fn() };
 
     const { findByText } = await renderScreen(navigation, { interestId: 'interest-1' });
 
@@ -206,7 +206,7 @@ describe('GuidedSetupScreen', () => {
     jest
       .spyOn(interestService, 'update')
       .mockResolvedValue(makeInterest({ type: 'UnstructuredLearning', typeSkippedAt: null }));
-    const navigation = { navigate: jest.fn() };
+    const navigation = { navigate: jest.fn(), replace: jest.fn() };
 
     const { getByText, findByText } = await renderScreen(navigation, {
       interestId: 'interest-1',
@@ -227,7 +227,7 @@ describe('GuidedSetupScreen', () => {
       fireEvent.press(getByText('Save & Continue Later'));
     });
 
-    expect(navigation.navigate).toHaveBeenCalledWith('InterestDetail', {
+    expect(navigation.replace).toHaveBeenCalledWith('InterestDetail', {
       interestId: 'interest-1',
     });
   });
@@ -236,7 +236,7 @@ describe('GuidedSetupScreen', () => {
     jest.spyOn(interestService, 'get').mockResolvedValue(makeInterest());
     jest.spyOn(constraintService, 'listForInterest').mockResolvedValue(makeConstraints());
     jest.spyOn(constraintService, 'answer').mockRejectedValue(new Error('boom'));
-    const navigation = { navigate: jest.fn() };
+    const navigation = { navigate: jest.fn(), replace: jest.fn() };
 
     const { findByText } = await renderScreen(navigation, {
       interestId: 'interest-1',
@@ -248,7 +248,7 @@ describe('GuidedSetupScreen', () => {
     });
 
     expect(await findByText('Could not save your answer. Please try again.')).toBeTruthy();
-    expect(navigation.navigate).not.toHaveBeenCalledWith('InterestDetail', {
+    expect(navigation.replace).not.toHaveBeenCalledWith('InterestDetail', {
       interestId: 'interest-1',
     });
   });
