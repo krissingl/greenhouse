@@ -192,7 +192,7 @@ export default function GuidedSetupScreen({ route, navigation }: Props): ReactEl
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Pressable onPress={handleClose} style={styles.closeButton}>
-        <Text style={{ color: theme.colors.textSecondary }}>Close</Text>
+        <Text style={{ color: theme.colors.textSecondary }}>Save &amp; Continue Later</Text>
       </Pressable>
 
       {actionError && (

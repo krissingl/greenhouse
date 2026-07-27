@@ -198,6 +198,40 @@ describe('GuidedSetupScreen', () => {
     expect(await findByText('How long does a session take?')).toBeTruthy();
   });
 
+  it('sequential mode: "Save & Continue Later" is always visible and exits to InterestDetail without discarding the saved answer', async () => {
+    jest
+      .spyOn(interestService, 'get')
+      .mockResolvedValue(makeInterest({ type: null, typeSkippedAt: null }));
+    jest.spyOn(constraintService, 'listForInterest').mockResolvedValue(makeConstraints());
+    jest
+      .spyOn(interestService, 'update')
+      .mockResolvedValue(makeInterest({ type: 'UnstructuredLearning', typeSkippedAt: null }));
+    const navigation = { navigate: jest.fn() };
+
+    const { getByText, findByText } = await renderScreen(navigation, {
+      interestId: 'interest-1',
+    });
+
+    await findByText('What kind of interest is this?');
+
+    await act(async () => {
+      fireEvent.press(await findByText('Unstructured learning'));
+    });
+
+    expect(interestService.update).toHaveBeenCalledWith('interest-1', {
+      type: 'UnstructuredLearning',
+      typeSkippedAt: null,
+    });
+
+    await act(async () => {
+      fireEvent.press(getByText('Save & Continue Later'));
+    });
+
+    expect(navigation.navigate).toHaveBeenCalledWith('InterestDetail', {
+      interestId: 'interest-1',
+    });
+  });
+
   it('renders inline feedback rather than crashing when a service call fails', async () => {
     jest.spyOn(interestService, 'get').mockResolvedValue(makeInterest());
     jest.spyOn(constraintService, 'listForInterest').mockResolvedValue(makeConstraints());

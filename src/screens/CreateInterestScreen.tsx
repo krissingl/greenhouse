@@ -27,8 +27,8 @@ export default function CreateInterestScreen({ navigation }: Props): ReactElemen
 
     try {
       setSaveError(null);
-      await interestService.create({ title });
-      navigation.goBack();
+      const created = await interestService.create({ title });
+      navigation.navigate('GuidedSetup', { interestId: created.id });
     } catch {
       setSaveError('Could not save this interest. Please try again.');
     }
