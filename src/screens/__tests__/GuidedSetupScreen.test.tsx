@@ -77,7 +77,11 @@ async function renderScreen(
 }
 
 describe('GuidedSetupScreen', () => {
-  it('single-card mode: answers the given axis and returns to InterestDetail', async () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('single-card mode: answering the given axis autosaves without navigating, and Forward returns to InterestDetail', async () => {
     jest.spyOn(interestService, 'get').mockResolvedValue(makeInterest());
     jest.spyOn(constraintService, 'listForInterest').mockResolvedValue(makeConstraints());
     jest.spyOn(constraintService, 'answer').mockResolvedValue({
@@ -104,12 +108,41 @@ describe('GuidedSetupScreen', () => {
       status: 'Set',
       value: '15-30',
     });
+    expect(navigation.navigate).not.toHaveBeenCalledWith('InterestDetail', {
+      interestId: 'interest-1',
+    });
+
+    await act(async () => {
+      fireEvent.press(await findByText('Next'));
+    });
+
     expect(navigation.navigate).toHaveBeenCalledWith('InterestDetail', {
       interestId: 'interest-1',
     });
   });
 
-  it('sequential mode: advances to the next unanswered card after an autosaved answer', async () => {
+  it('single-card mode: Back always returns to InterestDetail without an implicit answer', async () => {
+    jest.spyOn(interestService, 'get').mockResolvedValue(makeInterest());
+    jest.spyOn(constraintService, 'listForInterest').mockResolvedValue(makeConstraints());
+    const answerSpy = jest.spyOn(constraintService, 'answer');
+    const navigation = { navigate: jest.fn() };
+
+    const { findByText } = await renderScreen(navigation, {
+      interestId: 'interest-1',
+      startDimension: 'Time',
+    });
+
+    await act(async () => {
+      fireEvent.press(await findByText('Back'));
+    });
+
+    expect(answerSpy).not.toHaveBeenCalled();
+    expect(navigation.navigate).toHaveBeenCalledWith('InterestDetail', {
+      interestId: 'interest-1',
+    });
+  });
+
+  it('sequential mode: Forward with no selection folds "not sure" into Skip and advances to the next card', async () => {
     jest
       .spyOn(interestService, 'get')
       .mockResolvedValue(makeInterest({ type: null, typeSkippedAt: null }));
@@ -131,11 +164,11 @@ describe('GuidedSetupScreen', () => {
     await findByText('What kind of interest is this?');
 
     await act(async () => {
-      fireEvent.press(await findByText('Not sure / later'));
+      fireEvent.press(await findByText('Skip'));
     });
 
     expect(interestService.skipType).toHaveBeenCalledWith('interest-1');
-    expect(await findByText('How long does a good session usually want?')).toBeTruthy();
+    expect(await findByText('How long does a session take?')).toBeTruthy();
   });
 
   it('sequential mode: skips a dimension already Set or None', async () => {
@@ -162,7 +195,7 @@ describe('GuidedSetupScreen', () => {
 
     const { findByText } = await renderScreen(navigation, { interestId: 'interest-1' });
 
-    expect(await findByText('How long does a good session usually want?')).toBeTruthy();
+    expect(await findByText('How long does a session take?')).toBeTruthy();
   });
 
   it('renders inline feedback rather than crashing when a service call fails', async () => {

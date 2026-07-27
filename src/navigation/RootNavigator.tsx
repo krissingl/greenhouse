@@ -46,7 +46,7 @@ export default function RootNavigator(): ReactElement {
         <Stack.Screen
           name="GuidedSetup"
           component={GuidedSetupScreen}
-          options={{ title: 'Tell Greenhouse more' }}
+          options={{ title: 'A few more details' }}
         />
       </Stack.Navigator>
     </NavigationContainer>

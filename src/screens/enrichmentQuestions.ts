@@ -71,7 +71,7 @@ export const enrichmentQuestions: Record<EnrichmentAxis, QuestionConfig> = {
     variant: 'chips',
     axis: 'Time',
     shortLabel: 'time',
-    prompt: 'How long does a good session usually want?',
+    prompt: 'How long does a session take?',
     options: [
       { label: '5–15 min', value: '5-15' },
       { label: '15–30 min', value: '15-30' },

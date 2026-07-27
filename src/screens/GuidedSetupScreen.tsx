@@ -54,6 +54,7 @@ export default function GuidedSetupScreen({ route, navigation }: Props): ReactEl
   const [constraints, setConstraints] = useState<Constraint[] | undefined>(undefined);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [index, setIndex] = useState<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -79,18 +80,27 @@ export default function GuidedSetupScreen({ route, navigation }: Props): ReactEl
 
   const handleClose = () => navigation.navigate('InterestDetail', { interestId });
 
-  const axisToRender: EnrichmentAxis | null = startDimension
-    ? startDimension
+  // Single-card mode edits exactly the requested axis; sequential mode pages through
+  // every covered axis, so Back/Forward have somewhere to go.
+  const sequence: EnrichmentAxis[] = startDimension ? [startDimension] : COVERED_AXES;
+
+  const initialIndex: number | null = startDimension
+    ? 0
     : interest && constraints
-      ? (COVERED_AXES.find((axis) => isAxisUnanswered(axis, interest, constraints)) ?? null)
+      ? COVERED_AXES.findIndex((axis) => isAxisUnanswered(axis, interest, constraints))
       : null;
 
+  const effectiveIndex = index !== null ? index : initialIndex;
+
   useEffect(() => {
-    if (!startDimension && interest && constraints && axisToRender === null) {
+    if (!startDimension && index === null && interest && constraints && initialIndex === -1) {
       navigation.navigate('InterestDetail', { interestId });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [startDimension, interest, constraints, axisToRender]);
+  }, [startDimension, interest, constraints, initialIndex, index]);
+
+  const axisToRender: EnrichmentAxis | null =
+    effectiveIndex !== null && effectiveIndex >= 0 ? sequence[effectiveIndex] : null;
 
   const handleAnswer = async (axis: EnrichmentAxis, answer: EnrichmentAnswer) => {
     try {
@@ -116,12 +126,30 @@ export default function GuidedSetupScreen({ route, navigation }: Props): ReactEl
           prev ? prev.map((c) => (c.dimension === axis ? updatedConstraint : c)) : prev,
         );
       }
-
-      if (startDimension) {
-        navigation.navigate('InterestDetail', { interestId });
-      }
     } catch {
       setActionError('Could not save your answer. Please try again.');
+    }
+  };
+
+  const handleBack = () => {
+    if (effectiveIndex === null || effectiveIndex < 0) {
+      return;
+    }
+    if (effectiveIndex === 0) {
+      navigation.navigate('InterestDetail', { interestId });
+    } else {
+      setIndex(effectiveIndex - 1);
+    }
+  };
+
+  const handleForward = () => {
+    if (effectiveIndex === null || effectiveIndex < 0) {
+      return;
+    }
+    if (effectiveIndex === sequence.length - 1) {
+      navigation.navigate('InterestDetail', { interestId });
+    } else {
+      setIndex(effectiveIndex + 1);
     }
   };
 
@@ -175,9 +203,12 @@ export default function GuidedSetupScreen({ route, navigation }: Props): ReactEl
 
       {axisToRender && (
         <EnrichmentCard
+          key={axisToRender}
           axis={axisToRender}
           answer={currentAnswerFor(axisToRender, interest, constraints)}
           onAnswer={(answer) => handleAnswer(axisToRender, answer)}
+          onBack={handleBack}
+          onForward={handleForward}
         />
       )}
     </View>

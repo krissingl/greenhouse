@@ -15,18 +15,75 @@ interface EnrichmentCardProps {
   axis: EnrichmentAxis;
   answer: EnrichmentAnswer | null;
   onAnswer: (answer: EnrichmentAnswer) => void;
+  onBack: () => void;
+  onForward: () => void;
 }
+
+type WeatherValue = { matters: true; note?: string };
 
 export default function EnrichmentCard({
   axis,
   answer,
   onAnswer,
+  onBack,
+  onForward,
 }: EnrichmentCardProps): ReactElement {
   const theme = useTheme();
   const question = enrichmentQuestions[axis];
 
-  const handleNotSure = () => onAnswer({ status: 'Unknown' });
+  const initialItems =
+    question.variant === 'supplies' && answer?.status === 'Set' ? (answer.value as SupplyItem[]) : [];
+  const initialWeather =
+    question.variant === 'weather' && answer?.status === 'Set'
+      ? (answer.value as WeatherValue)
+      : null;
+
+  const [items, setItems] = useState<SupplyItem[]>(initialItems);
+  const [weatherMatters, setWeatherMatters] = useState<boolean>(initialWeather !== null);
+  const [weatherNote, setWeatherNote] = useState<string>(initialWeather?.note ?? '');
+
   const handleDoesNotApply = () => onAnswer({ status: 'None' });
+
+  const hasAnswer =
+    question.variant === 'supplies'
+      ? items.some((item) => item.name.trim() !== '')
+      : question.variant === 'weather'
+        ? weatherMatters || answer?.status === 'None'
+        : answer !== null && answer.status !== 'Unknown';
+
+  const handleClear = () => {
+    onAnswer({ status: 'Unknown' });
+    setItems([]);
+    setWeatherMatters(false);
+    setWeatherNote('');
+  };
+
+  const flushDraft = () => {
+    if (question.variant === 'supplies') {
+      const validItems = items.filter((item) => item.name.trim() !== '');
+      if (validItems.length > 0) {
+        onAnswer({ status: 'Set', value: validItems });
+      }
+    } else if (question.variant === 'weather' && weatherMatters) {
+      onAnswer({ status: 'Set', value: { matters: true, note: weatherNote || undefined } });
+    }
+  };
+
+  const handleBack = () => {
+    if (hasAnswer) {
+      flushDraft();
+    }
+    onBack();
+  };
+
+  const handleForward = () => {
+    if (!hasAnswer) {
+      onAnswer({ status: 'Unknown' });
+    } else {
+      flushDraft();
+    }
+    onForward();
+  };
 
   return (
     <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
@@ -57,27 +114,22 @@ export default function EnrichmentCard({
 
         {question.variant === 'supplies' && (
           <SuppliesEditor
-            value={answer?.status === 'Set' ? (answer.value as SupplyItem[]) : []}
-            onChange={(items) => onAnswer({ status: 'Set', value: items })}
+            items={items}
+            onChangeItems={setItems}
           />
         )}
 
         {question.variant === 'weather' && (
           <WeatherEditor
-            value={
-              answer?.status === 'Set' ? (answer.value as { matters: true; note?: string }) : null
-            }
-            onChange={(value) => onAnswer({ status: 'Set', value })}
+            matters={weatherMatters}
+            note={weatherNote}
+            onToggleMatters={() => setWeatherMatters(true)}
+            onChangeNote={setWeatherNote}
           />
         )}
       </View>
 
       <View style={styles.escapeRow}>
-        <ChoiceChip
-          label="Not sure / later"
-          selected={answer?.status === 'Unknown'}
-          onPress={handleNotSure}
-        />
         {question.variant !== 'type' && (
           <ChoiceChip
             label="None / doesn't apply"
@@ -85,6 +137,28 @@ export default function EnrichmentCard({
             onPress={handleDoesNotApply}
           />
         )}
+        {hasAnswer && (
+          <Pressable onPress={handleClear} style={styles.textButton}>
+            <Text style={{ color: theme.colors.textSecondary }}>Clear answer</Text>
+          </Pressable>
+        )}
+      </View>
+
+      <View style={styles.navRow}>
+        <Pressable
+          onPress={handleBack}
+          style={[styles.navButton, { backgroundColor: theme.colors.surfaceVariant }]}
+        >
+          <Text style={{ color: theme.colors.text }}>Back</Text>
+        </Pressable>
+        <Pressable
+          onPress={handleForward}
+          style={[styles.navButton, { backgroundColor: theme.colors.primary }]}
+        >
+          <Text style={{ color: theme.colors.textOnPrimary }}>
+            {hasAnswer ? 'Next' : 'Skip'}
+          </Text>
+        </Pressable>
       </View>
     </View>
   );
@@ -117,19 +191,13 @@ function ChoiceChip({
 }
 
 function SuppliesEditor({
-  value,
-  onChange,
+  items,
+  onChangeItems,
 }: {
-  value: SupplyItem[];
-  onChange: (items: SupplyItem[]) => void;
+  items: SupplyItem[];
+  onChangeItems: (items: SupplyItem[]) => void;
 }): ReactElement {
   const theme = useTheme();
-  const [items, setItems] = useState<SupplyItem[]>(value);
-
-  const commit = (next: SupplyItem[]) => {
-    setItems(next);
-    onChange(next);
-  };
 
   return (
     <View style={styles.suppliesContainer}>
@@ -140,7 +208,7 @@ function SuppliesEditor({
             onChangeText={(name) => {
               const next = items.slice();
               next[index] = { ...item, name };
-              commit(next);
+              onChangeItems(next);
             }}
             placeholder="Item name"
             placeholderTextColor={theme.colors.textTertiary}
@@ -155,12 +223,12 @@ function SuppliesEditor({
             onPress={() => {
               const next = items.slice();
               next[index] = { ...item, have: !item.have };
-              commit(next);
+              onChangeItems(next);
             }}
           />
           <Pressable
             accessibilityLabel="Remove item"
-            onPress={() => commit(items.filter((_, i) => i !== index))}
+            onPress={() => onChangeItems(items.filter((_, i) => i !== index))}
           >
             <Text style={{ color: theme.colors.error }}>Remove</Text>
           </Pressable>
@@ -169,35 +237,33 @@ function SuppliesEditor({
       <ChoiceChip
         label="+ Add item"
         selected={false}
-        onPress={() => commit([...items, { name: '', have: false }])}
+        onPress={() => onChangeItems([...items, { name: '', have: false }])}
       />
     </View>
   );
 }
 
 function WeatherEditor({
-  value,
-  onChange,
+  matters,
+  note,
+  onToggleMatters,
+  onChangeNote,
 }: {
-  value: { matters: true; note?: string } | null;
-  onChange: (value: { matters: true; note?: string }) => void;
+  matters: boolean;
+  note: string;
+  onToggleMatters: () => void;
+  onChangeNote: (note: string) => void;
 }): ReactElement {
   const theme = useTheme();
-  const [note, setNote] = useState(value?.note ?? '');
 
   return (
     <View style={styles.suppliesContainer}>
-      <ChoiceChip
-        label="Yes, it matters"
-        selected={value !== null}
-        onPress={() => onChange({ matters: true, note })}
-      />
-      {value !== null && (
+      <ChoiceChip label="Yes, it matters" selected={matters} onPress={onToggleMatters} />
+      {matters && (
         <TextInput
           value={note}
-          onChangeText={setNote}
-          onBlur={() => onChange({ matters: true, note })}
-          placeholder="Anything specific? (optional)"
+          onChangeText={onChangeNote}
+          placeholder="What matters — heat, cold, rain, a season? (optional)"
           placeholderTextColor={theme.colors.textTertiary}
           style={[
             styles.supplyInput,
@@ -223,8 +289,25 @@ const styles = StyleSheet.create({
   escapeRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    alignItems: 'center',
     gap: 8,
     marginTop: 16,
+  },
+  navRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 20,
+  },
+  navButton: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  textButton: {
+    paddingHorizontal: 4,
+    paddingVertical: 8,
   },
   chip: {
     paddingHorizontal: 12,
