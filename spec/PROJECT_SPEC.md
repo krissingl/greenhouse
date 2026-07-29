@@ -124,21 +124,6 @@ constraint rows are removed via `ON DELETE CASCADE` when the parent Interest is
 deleted. `EnergyFocus` is a valid, stored dimension from Phase 2 onward but has
 no question card until a later phase (see Feature Roadmap).
 
-### Note _(resolved 2026-07-28, Phase 2)_
-
-A free-form, timestamped note the user attaches to an Interest — a lightweight
-place to jot things like "rented a violin" or "found a teacher" without waiting
-for a Session or Reflection to exist. An Interest can have **many** Notes, each
-independently timestamped; a Note is plain text with no edit history. Notes are
-removed via `ON DELETE CASCADE` when the parent Interest is deleted, mirroring
-the `Constraint` cascade pattern. Interest Detail is the home for Notes — the
-guided enrichment questionnaire is not a notes surface, since adding one there
-would work against the fast-answer flow the enrichment cards are designed for.
-
-Distinct from `Session` notes (Phase 4) and `Reflection` notes (Phase 5), which
-are scoped to a single engagement or reflection rather than the Interest as a
-whole.
-
 ### Session
 
 A record of a single engagement — the *act of choosing to do* an Interest. Captured
@@ -223,7 +208,7 @@ migrations, repository implementations, and query optimization. Persistence
 concerns must not leak into domain logic. Relationships preserve the domain model
 rather than optimizing prematurely.
 
-- Persistent state: Interests, Constraints, Notes, Sessions, Reflections, ImpactReflections.
+- Persistent state: Interests, Constraints, Sessions, Reflections, ImpactReflections.
 - Derived state (not stored unless caching is required for performance):
   dashboard statistics, recommendation results, analytics summaries.
 
@@ -345,11 +330,6 @@ interface ConstraintService {                  // added Phase 2 — no screen ma
   needsEnrichment(interestIds: InterestId[], dimensions: ConstraintDimension[]): Promise<Set<InterestId>>; // interests among interestIds not fully answered on all given dimensions
 }
 
-interface NoteService {                        // added Phase 2 — no screen may call NoteRepository directly
-  listForInterest(interestId: InterestId): Promise<Note[]>;      // newest first
-  add(interestId: InterestId, text: string): Promise<Note>;
-}
-
 interface RecommendationService {
   recommend(context: UserContext, options?: { includeCompleted?: boolean }): Promise<Recommendation[]>;
 }
@@ -399,11 +379,6 @@ interface ConstraintRepository {
   findFullyAnsweredInterestIds(interestIds: InterestId[], dimensions: ConstraintDimension[]): Promise<Set<InterestId>>; // added Phase 2 — bulk check to avoid N+1 queries
 }
 
-interface NoteRepository {                      // added Phase 2
-  insert(note: NewNote): Promise<Note>;
-  findForInterest(interestId: InterestId): Promise<Note[]>;      // newest first; ON DELETE CASCADE from interests
-}
-
 interface SessionRepository {
   insert(session: NewSession): Promise<Session>;
   update(id: SessionId, patch: Partial<Session>): Promise<Session>;
@@ -428,7 +403,7 @@ domain, and persistence and delivers a complete, usable feature.
 |-------|------|--------------------|
 | **0** | Foundation | Expo + RN + TypeScript project, ESLint/Prettier, navigation, design system/theming, SQLite + migrations, repository infra, logging, testing framework. Runnable shell that initializes the DB. |
 | **1** | Interest Backlog (MVP) | Create (title only), list, view, edit, archive/delete, search, filter by state. A usable personal backlog. |
-| **2** | Guided Interest Setup | Optionally enrich interests: type, time/location/supplies/social/weather+seasonal requirements via a card-based flow. Energy/focus is modeled and stored but has no question card until a later phase. All fields optional. Free-form, timestamped Notes on an Interest. |
+| **2** | Guided Interest Setup | Optionally enrich interests: type, time/location/supplies/social/weather+seasonal requirements via a card-based flow. Energy/focus is modeled and stored but has no question card until a later phase. All fields optional. |
 | **3** | Recommendation Engine (v1) | Deterministic feasibility filter (load candidates → evaluate per-dimension: hard blocks exclude, soft blocks warn → order feasibility-first → return). Request recommendations from current circumstances. |
 | **4** | Sessions | Start/end session, record duration, optional notes. |
 | **5** | Reflections | Fulfillment, satisfaction, mood, would-do-again, notes. |
@@ -514,13 +489,6 @@ design tokens. Read it before expanding Phases 0, 2, 3, and 5–7 into tickets.
   flagging the interest. Choosing an actual type clears `typeSkippedAt`.
   `InterestService` gains a corresponding `skipType(id): Promise<Interest>`
   method. See [API Contracts](#api-contracts-internal-service--repository-interfaces).
-- **`Note` added as an Interest-attached entity** _(2026-07-28)_ — surfaced
-  during Phase 2 UAT: notes previously existed only on `Session` (Phase 4) and
-  `Reflection` (Phase 5), with no way to jot a freestanding note against an
-  Interest itself. Modeled as many independently-timestamped Notes per
-  Interest, following the `Constraint` implementation pattern (own migration,
-  `ON DELETE CASCADE` from `interests`, a `NoteRepository` behind a
-  `NoteService`). See [Note](#note-resolved-2026-07-28-phase-2).
 
 ## Open Questions
 
