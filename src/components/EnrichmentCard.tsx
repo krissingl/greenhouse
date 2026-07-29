@@ -1,4 +1,4 @@
-import { useState, type ReactElement } from 'react';
+import { useEffect, useRef, useState, type ReactElement } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import type { ConstraintStatus, ConstraintValue, SupplyItem } from '../domain/constraint';
@@ -41,6 +41,37 @@ export default function EnrichmentCard({
   const [items, setItems] = useState<SupplyItem[]>(initialItems);
   const [weatherMatters, setWeatherMatters] = useState<boolean>(initialWeather !== null);
   const [weatherNote, setWeatherNote] = useState<string>(initialWeather?.note ?? '');
+
+  // Every exit from this card (Back/Forward, Close, Home, hardware back, or the
+  // screen navigating away out from under it) unmounts this component, so an
+  // unmount-time flush is the one choke point that reliably covers all of them —
+  // draft-holding axes (Supplies/Weather) would otherwise silently lose unsaved
+  // edits on any exit path that isn't the explicit Back/Forward handlers.
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
+  const weatherMattersRef = useRef(weatherMatters);
+  weatherMattersRef.current = weatherMatters;
+  const weatherNoteRef = useRef(weatherNote);
+  weatherNoteRef.current = weatherNote;
+  const onAnswerRef = useRef(onAnswer);
+  onAnswerRef.current = onAnswer;
+
+  useEffect(() => {
+    return () => {
+      if (question.variant === 'supplies') {
+        const validItems = itemsRef.current.filter((item) => item.name.trim() !== '');
+        if (validItems.length > 0) {
+          onAnswerRef.current({ status: 'Set', value: validItems });
+        }
+      } else if (question.variant === 'weather' && weatherMattersRef.current) {
+        onAnswerRef.current({
+          status: 'Set',
+          value: { matters: true, note: weatherNoteRef.current || undefined },
+        });
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleDoesNotApply = () => onAnswer({ status: 'None' });
 
@@ -266,7 +297,7 @@ function WeatherEditor({
           placeholder="What matters — heat, cold, rain, a season? (optional)"
           placeholderTextColor={theme.colors.textTertiary}
           style={[
-            styles.supplyInput,
+            styles.weatherNoteInput,
             { color: theme.colors.text, borderColor: theme.colors.border },
           ]}
         />
@@ -325,6 +356,14 @@ const styles = StyleSheet.create({
   },
   supplyInput: {
     flex: 1,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  weatherNoteInput: {
+    alignSelf: 'stretch',
+    minHeight: 44,
     borderWidth: 1,
     borderRadius: 8,
     paddingHorizontal: 10,
