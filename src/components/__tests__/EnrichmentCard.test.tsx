@@ -1,4 +1,5 @@
 import { act, fireEvent, render } from '@testing-library/react-native';
+import { TextInput } from 'react-native';
 
 import { ThemeProvider } from '../../theme';
 import EnrichmentCard from '../EnrichmentCard';
@@ -330,5 +331,95 @@ describe('EnrichmentCard', () => {
       value: { matters: true, note: 'Too cold below freezing' },
     });
     expect(onForward).toHaveBeenCalled();
+  });
+
+  it('renders a real on/off switch for supply items, showing only the active label', async () => {
+    const { getByText, getAllByPlaceholderText, getByRole } = await render(
+      <ThemeProvider>
+        <EnrichmentCard
+          axis="Supplies"
+          answer={{ status: 'Set', value: [{ name: 'Paint brush', have: false }] }}
+          onAnswer={jest.fn()}
+          onBack={jest.fn()}
+          onForward={jest.fn()}
+        />
+      </ThemeProvider>,
+    );
+
+    expect(getAllByPlaceholderText('Item name')).toHaveLength(1);
+    expect(getByText('Need it')).toBeTruthy();
+    expect(() => getByText('Have it')).toThrow();
+
+    const toggle = getByRole('switch');
+    await act(async () => {
+      fireEvent(toggle, 'valueChange', true);
+    });
+
+    expect(getByText('Have it')).toBeTruthy();
+    expect(() => getByText('Need it')).toThrow();
+  });
+
+  it('preserves the "Remove item" accessibility label on the trashcan control', async () => {
+    const { getByLabelText } = await render(
+      <ThemeProvider>
+        <EnrichmentCard
+          axis="Supplies"
+          answer={{ status: 'Set', value: [{ name: 'Paint brush', have: false }] }}
+          onAnswer={jest.fn()}
+          onBack={jest.fn()}
+          onForward={jest.fn()}
+        />
+      </ThemeProvider>,
+    );
+
+    expect(getByLabelText('Remove item')).toBeTruthy();
+  });
+
+  it('focuses the newly-added supply item input', async () => {
+    const focusSpy = jest.spyOn(TextInput.prototype, 'focus');
+    const { getByText, getAllByPlaceholderText } = await render(
+      <ThemeProvider>
+        <EnrichmentCard
+          axis="Supplies"
+          answer={null}
+          onAnswer={jest.fn()}
+          onBack={jest.fn()}
+          onForward={jest.fn()}
+        />
+      </ThemeProvider>,
+    );
+
+    await act(async () => {
+      fireEvent.press(getByText('+ Add item'));
+    });
+
+    expect(getAllByPlaceholderText('Item name')).toHaveLength(1);
+    expect(focusSpy).toHaveBeenCalled();
+
+    focusSpy.mockClear();
+
+    await act(async () => {
+      fireEvent.press(getByText('+ Add item'));
+    });
+
+    expect(getAllByPlaceholderText('Item name')).toHaveLength(2);
+    expect(focusSpy).toHaveBeenCalled();
+  });
+
+  it('renders single-select axis options as a bordered group of rows with a radio indicator', async () => {
+    const { getByText } = await render(
+      <ThemeProvider>
+        <EnrichmentCard
+          axis="Time"
+          answer={{ status: 'Set', value: '15-30' }}
+          onAnswer={jest.fn()}
+          onBack={jest.fn()}
+          onForward={jest.fn()}
+        />
+      </ThemeProvider>,
+    );
+
+    expect(getByText('5–15 min')).toBeTruthy();
+    expect(getByText('15–30 min')).toBeTruthy();
   });
 });

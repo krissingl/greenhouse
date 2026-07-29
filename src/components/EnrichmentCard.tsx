@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactElement } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 
+import { ActionRow, GroupRow, OptionGroup, OptionRow } from './OptionGroup';
 import type { ConstraintStatus, ConstraintValue, SupplyItem } from '../domain/constraint';
 import type { InterestType } from '../domain/interest';
 import { enrichmentQuestions, type EnrichmentAxis } from '../screens/enrichmentQuestions';
@@ -48,13 +49,16 @@ export default function EnrichmentCard({
   // draft-holding axes (Supplies/Weather) would otherwise silently lose unsaved
   // edits on any exit path that isn't the explicit Back/Forward handlers.
   const itemsRef = useRef(items);
-  itemsRef.current = items;
   const weatherMattersRef = useRef(weatherMatters);
-  weatherMattersRef.current = weatherMatters;
   const weatherNoteRef = useRef(weatherNote);
-  weatherNoteRef.current = weatherNote;
   const onAnswerRef = useRef(onAnswer);
-  onAnswerRef.current = onAnswer;
+
+  useEffect(() => {
+    itemsRef.current = items;
+    weatherMattersRef.current = weatherMatters;
+    weatherNoteRef.current = weatherNote;
+    onAnswerRef.current = onAnswer;
+  });
 
   useEffect(() => {
     return () => {
@@ -122,32 +126,23 @@ export default function EnrichmentCard({
         {question.prompt}
       </Text>
 
-      <View style={styles.optionsRow}>
-        {question.variant === 'type' &&
-          question.options.map((option) => (
-            <ChoiceChip
-              key={String(option.value)}
-              label={option.label}
-              selected={answer?.status === 'Set' && answer.value === option.value}
-              onPress={() => onAnswer({ status: 'Set', value: option.value })}
-            />
-          ))}
-
-        {question.variant === 'chips' &&
-          question.options.map((option) => (
-            <ChoiceChip
-              key={String(option.value)}
-              label={option.label}
-              selected={answer?.status === 'Set' && answer.value === option.value}
-              onPress={() => onAnswer({ status: 'Set', value: option.value })}
-            />
-          ))}
+      <View style={styles.groupStack}>
+        {(question.variant === 'type' || question.variant === 'chips') && (
+          <OptionGroup>
+            {question.options.map((option, index) => (
+              <OptionRow
+                key={String(option.value)}
+                label={option.label}
+                selected={answer?.status === 'Set' && answer.value === option.value}
+                onPress={() => onAnswer({ status: 'Set', value: option.value })}
+                isLast={index === question.options.length - 1}
+              />
+            ))}
+          </OptionGroup>
+        )}
 
         {question.variant === 'supplies' && (
-          <SuppliesEditor
-            items={items}
-            onChangeItems={setItems}
-          />
+          <SuppliesEditor items={items} onChangeItems={setItems} />
         )}
 
         {question.variant === 'weather' && (
@@ -158,22 +153,24 @@ export default function EnrichmentCard({
             onChangeNote={setWeatherNote}
           />
         )}
+
+        {question.variant !== 'type' && (
+          <OptionGroup>
+            <OptionRow
+              label="None / doesn't apply"
+              selected={answer?.status === 'None'}
+              onPress={handleDoesNotApply}
+              isLast
+            />
+          </OptionGroup>
+        )}
       </View>
 
-      <View style={styles.escapeRow}>
-        {question.variant !== 'type' && (
-          <ChoiceChip
-            label="None / doesn't apply"
-            selected={answer?.status === 'None'}
-            onPress={handleDoesNotApply}
-          />
-        )}
-        {hasAnswer && (
-          <Pressable onPress={handleClear} style={styles.textButton}>
-            <Text style={{ color: theme.colors.textSecondary }}>Clear answer</Text>
-          </Pressable>
-        )}
-      </View>
+      {hasAnswer && (
+        <Pressable onPress={handleClear} style={styles.textButton}>
+          <Text style={{ color: theme.colors.textSecondary }}>Clear answer</Text>
+        </Pressable>
+      )}
 
       <View style={styles.navRow}>
         <Pressable
@@ -195,32 +192,6 @@ export default function EnrichmentCard({
   );
 }
 
-function ChoiceChip({
-  label,
-  selected,
-  onPress,
-}: {
-  label: string;
-  selected: boolean;
-  onPress: () => void;
-}): ReactElement {
-  const theme = useTheme();
-
-  return (
-    <Pressable
-      onPress={onPress}
-      style={[
-        styles.chip,
-        { backgroundColor: selected ? theme.colors.primary : theme.colors.surfaceVariant },
-      ]}
-    >
-      <Text style={{ color: selected ? theme.colors.textOnPrimary : theme.colors.text }}>
-        {label}
-      </Text>
-    </Pressable>
-  );
-}
-
 function SuppliesEditor({
   items,
   onChangeItems,
@@ -229,12 +200,24 @@ function SuppliesEditor({
   onChangeItems: (items: SupplyItem[]) => void;
 }): ReactElement {
   const theme = useTheme();
+  const inputRefs = useRef<(TextInput | null)[]>([]);
+  const previousLengthRef = useRef(items.length);
+
+  useEffect(() => {
+    if (items.length > previousLengthRef.current) {
+      inputRefs.current[items.length - 1]?.focus();
+    }
+    previousLengthRef.current = items.length;
+  }, [items.length]);
 
   return (
-    <View style={styles.suppliesContainer}>
+    <OptionGroup>
       {items.map((item, index) => (
-        <View key={index} style={styles.supplyRow}>
+        <GroupRow key={index} isLast={false}>
           <TextInput
+            ref={(ref) => {
+              inputRefs.current[index] = ref;
+            }}
             value={item.name}
             onChangeText={(name) => {
               const next = items.slice();
@@ -248,29 +231,35 @@ function SuppliesEditor({
               { color: theme.colors.text, borderColor: theme.colors.border },
             ]}
           />
-          <ChoiceChip
-            label={item.have ? 'Have it' : 'Need it'}
-            selected={item.have}
-            onPress={() => {
+          <Text style={{ color: theme.colors.textSecondary }}>
+            {item.have ? 'Have it' : 'Need it'}
+          </Text>
+          <Switch
+            value={item.have}
+            onValueChange={(have) => {
               const next = items.slice();
-              next[index] = { ...item, have: !item.have };
+              next[index] = { ...item, have };
               onChangeItems(next);
             }}
+            trackColor={{ true: theme.colors.primary, false: theme.colors.border }}
           />
           <Pressable
             accessibilityLabel="Remove item"
             onPress={() => onChangeItems(items.filter((_, i) => i !== index))}
+            hitSlop={8}
           >
-            <Text style={{ color: theme.colors.error }}>Remove</Text>
+            <Text style={{ color: theme.colors.error, fontSize: theme.typography.title.size }}>
+              🗑
+            </Text>
           </Pressable>
-        </View>
+        </GroupRow>
       ))}
-      <ChoiceChip
+      <ActionRow
         label="+ Add item"
-        selected={false}
         onPress={() => onChangeItems([...items, { name: '', have: false }])}
+        isLast
       />
-    </View>
+    </OptionGroup>
   );
 }
 
@@ -288,21 +277,28 @@ function WeatherEditor({
   const theme = useTheme();
 
   return (
-    <View style={styles.suppliesContainer}>
-      <ChoiceChip label="Yes, it matters" selected={matters} onPress={onToggleMatters} />
+    <OptionGroup>
+      <OptionRow
+        label="Yes, it matters"
+        selected={matters}
+        onPress={onToggleMatters}
+        isLast={!matters}
+      />
       {matters && (
-        <TextInput
-          value={note}
-          onChangeText={onChangeNote}
-          placeholder="What matters — heat, cold, rain, a season? (optional)"
-          placeholderTextColor={theme.colors.textTertiary}
-          style={[
-            styles.weatherNoteInput,
-            { color: theme.colors.text, borderColor: theme.colors.border },
-          ]}
-        />
+        <GroupRow isLast>
+          <TextInput
+            value={note}
+            onChangeText={onChangeNote}
+            placeholder="What matters — heat, cold, rain, a season? (optional)"
+            placeholderTextColor={theme.colors.textTertiary}
+            style={[
+              styles.weatherNoteInput,
+              { color: theme.colors.text, borderColor: theme.colors.border },
+            ]}
+          />
+        </GroupRow>
       )}
-    </View>
+    </OptionGroup>
   );
 }
 
@@ -311,18 +307,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
   },
-  optionsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+  groupStack: {
     marginTop: 12,
-  },
-  escapeRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 16,
+    gap: 12,
   },
   navRow: {
     flexDirection: 'row',
@@ -337,22 +324,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   textButton: {
+    marginTop: 12,
     paddingHorizontal: 4,
     paddingVertical: 8,
-  },
-  chip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 16,
-  },
-  suppliesContainer: {
-    width: '100%',
-    gap: 8,
-  },
-  supplyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
   },
   supplyInput: {
     flex: 1,

@@ -3,6 +3,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useState, type ReactElement } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { NavigationRow, OptionGroup } from '../components/OptionGroup';
 import type { Constraint } from '../domain/constraint';
 import type { Interest } from '../domain/interest';
 import type { RootStackParamList } from '../navigation/RootNavigator';
@@ -197,27 +198,22 @@ export default function InterestDetailScreen({ route, navigation }: Props): Reac
       </Text>
 
       <View style={styles.chipRow}>
-        {COVERED_AXES.map((axis) => {
-          const chip = chipDisplayFor(axis, interest, constraints);
-          return (
-            <Pressable
-              key={axis}
-              onPress={() =>
-                navigation.navigate('GuidedSetup', { interestId, startDimension: axis })
-              }
-              style={[
-                styles.chip,
-                {
-                  backgroundColor: chip.answered
-                    ? theme.colors.primaryContainer
-                    : theme.colors.surfaceVariant,
-                },
-              ]}
-            >
-              <Text style={{ color: theme.colors.text }}>{chip.text}</Text>
-            </Pressable>
-          );
-        })}
+        <OptionGroup>
+          {COVERED_AXES.map((axis, index) => {
+            const chip = chipDisplayFor(axis, interest, constraints);
+            return (
+              <NavigationRow
+                key={axis}
+                label={chip.text}
+                emphasis={chip.answered}
+                onPress={() =>
+                  navigation.navigate('GuidedSetup', { interestId, startDimension: axis })
+                }
+                isLast={index === COVERED_AXES.length - 1}
+              />
+            );
+          })}
+        </OptionGroup>
       </View>
 
       <Pressable
@@ -272,14 +268,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   chipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
     marginTop: 12,
-  },
-  chip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 16,
   },
 });
