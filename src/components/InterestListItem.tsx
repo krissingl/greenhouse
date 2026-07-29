@@ -1,7 +1,7 @@
 import type { ReactElement } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import type { Interest } from '../domain/interest';
+import { displayLabel, type Interest } from '../domain/interest';
 import { useTheme } from '../theme';
 
 interface InterestListItemProps {
@@ -35,7 +35,7 @@ export default function InterestListItem({
             marginTop: theme.spacing.xs,
           }}
         >
-          {interest.state}
+          {displayLabel(interest.state)}
         </Text>
       </Pressable>
 

@@ -42,9 +42,9 @@ describe('displayLabel', () => {
     expect(displayLabel('Complete')).toBe('Complete');
   });
 
-  it('spaces PascalCase type values into readable labels', () => {
-    expect(displayLabel('OneTimeProject')).toBe('One-time project');
-    expect(displayLabel('StructuredLearning')).toBe('Structured learning');
-    expect(displayLabel('UnstructuredLearning')).toBe('Unstructured learning');
+  it('maps interest types to their garden-metaphor display names', () => {
+    expect(displayLabel('OneTimeProject')).toBe('Trials');
+    expect(displayLabel('StructuredLearning')).toBe('Trellises');
+    expect(displayLabel('UnstructuredLearning')).toBe('Evergreens');
   });
 });

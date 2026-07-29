@@ -56,6 +56,36 @@ describe('InterestListScreen', () => {
     expect(await findByText('Could not load interests. Please try again.')).toBeTruthy();
   });
 
+  it('defaults the state filter to In progress and the type filter to All', async () => {
+    const listSpy = jest.spyOn(interestService, 'list').mockResolvedValueOnce([]);
+    jest.spyOn(constraintService, 'needsEnrichment').mockResolvedValueOnce(new Set());
+    const navigation = { navigate: jest.fn() };
+
+    const { findByText } = await renderScreen(navigation);
+    await findByText('No interests yet');
+
+    expect(listSpy).toHaveBeenCalledWith(expect.objectContaining({ state: 'InProgress' }));
+    expect(await findByText('In progress · All')).toBeTruthy();
+  });
+
+  it('keeps the active filter summary visible while collapsed, and expands controls on tap', async () => {
+    jest.spyOn(interestService, 'list').mockResolvedValue([]);
+    jest.spyOn(constraintService, 'needsEnrichment').mockResolvedValue(new Set());
+    const navigation = { navigate: jest.fn() };
+
+    const { findByText, queryByText } = await renderScreen(navigation);
+    await findByText('No interests yet');
+
+    expect(await findByText('In progress · All')).toBeTruthy();
+    expect(queryByText('Archived')).toBeNull();
+
+    await act(async () => {
+      fireEvent.press(await findByText('In progress · All'));
+    });
+
+    expect(await findByText('Archived')).toBeTruthy();
+  });
+
   it('shows the nudge banner when an interest needs enrichment', async () => {
     jest
       .spyOn(interestService, 'list')
@@ -132,8 +162,8 @@ describe('InterestListScreen', () => {
   it('shows a Start button on Backlog rows and updates the row in place with no navigation', async () => {
     jest
       .spyOn(interestService, 'list')
-      .mockResolvedValueOnce([makeInterest({ id: 'interest-1', state: 'Backlog' })]);
-    jest.spyOn(constraintService, 'needsEnrichment').mockResolvedValueOnce(new Set());
+      .mockResolvedValue([makeInterest({ id: 'interest-1', state: 'Backlog' })]);
+    jest.spyOn(constraintService, 'needsEnrichment').mockResolvedValue(new Set());
     jest
       .spyOn(interestService, 'setState')
       .mockResolvedValueOnce(makeInterest({ id: 'interest-1', state: 'InProgress' }));
@@ -147,7 +177,7 @@ describe('InterestListScreen', () => {
 
     expect(interestService.setState).toHaveBeenCalledWith('interest-1', 'InProgress');
     expect(navigation.navigate).not.toHaveBeenCalled();
-    expect(await findByText('InProgress')).toBeTruthy();
+    expect(await findByText('In progress')).toBeTruthy();
     expect(queryByText('Start')).toBeNull();
   });
 
@@ -164,7 +194,7 @@ describe('InterestListScreen', () => {
     expect(queryByText('Start')).toBeNull();
   });
 
-  it('removes the row from view when starting an interest no longer matches the active Backlog filter', async () => {
+  it('keeps the just-started interest in view by switching the state filter to In progress', async () => {
     jest
       .spyOn(interestService, 'list')
       .mockResolvedValue([makeInterest({ id: 'interest-1', state: 'Backlog' })]);
@@ -174,19 +204,22 @@ describe('InterestListScreen', () => {
       .mockResolvedValueOnce(makeInterest({ id: 'interest-1', state: 'InProgress' }));
     const navigation = { navigate: jest.fn() };
 
-    const { findByText, findAllByText, queryByText } = await renderScreen(navigation);
+    const { findByText, findAllByText } = await renderScreen(navigation);
     await findByText('Learn violin');
 
-    const backlogChip = (await findAllByText('Backlog'))[0];
     await act(async () => {
-      fireEvent.press(backlogChip);
+      fireEvent.press((await findAllByText('In progress · All'))[0]);
+    });
+    await act(async () => {
+      fireEvent.press((await findAllByText('Backlog'))[0]);
     });
 
     await act(async () => {
       fireEvent.press(await findByText('Start'));
     });
 
-    expect(queryByText('Learn violin')).toBeNull();
+    expect(await findByText('Learn violin')).toBeTruthy();
+    expect((await findAllByText('In progress · All')).length).toBeGreaterThan(0);
   });
 
   it('requests archived-only interests when the Archived filter is selected', async () => {
@@ -198,6 +231,9 @@ describe('InterestListScreen', () => {
     await findByText('No interests yet');
 
     await act(async () => {
+      fireEvent.press(await findByText('In progress · All'));
+    });
+    await act(async () => {
       fireEvent.press(await findByText('Archived'));
     });
 
@@ -207,7 +243,7 @@ describe('InterestListScreen', () => {
     expect(listSpy.mock.calls.some(([filter]) => filter?.includeArchived === true)).toBe(false);
   });
 
-  it('groups rows into type sections with a "No type yet" section at the bottom', async () => {
+  it('groups rows into type sections using the garden-metaphor display names, with Unplanted last', async () => {
     jest.spyOn(interestService, 'list').mockResolvedValueOnce([
       makeInterest({ id: 'interest-1', title: 'Build shelves', type: 'OneTimeProject' }),
       makeInterest({ id: 'interest-2', title: 'Learn violin', type: 'StructuredLearning' }),
@@ -218,9 +254,9 @@ describe('InterestListScreen', () => {
 
     const { findByText } = await renderScreen(navigation);
 
-    expect(await findByText('ONE-TIME PROJECT')).toBeTruthy();
-    expect(await findByText('STRUCTURED LEARNING')).toBeTruthy();
-    expect(await findByText('NO TYPE YET')).toBeTruthy();
+    expect(await findByText('TRIALS')).toBeTruthy();
+    expect(await findByText('TRELLISES')).toBeTruthy();
+    expect(await findByText('UNPLANTED')).toBeTruthy();
     expect(await findByText('Build shelves')).toBeTruthy();
     expect(await findByText('Learn violin')).toBeTruthy();
     expect(await findByText('Bake bread')).toBeTruthy();
@@ -238,8 +274,8 @@ describe('InterestListScreen', () => {
     const { findByText, queryByText } = await renderScreen(navigation);
 
     await findByText('Build shelves');
-    expect(queryByText('STRUCTURED LEARNING')).toBeNull();
-    expect(queryByText('NO TYPE YET')).toBeNull();
+    expect(queryByText('TRELLISES')).toBeNull();
+    expect(queryByText('UNPLANTED')).toBeNull();
   });
 
   it('requests a type filter when a type chip is selected', async () => {
@@ -251,7 +287,10 @@ describe('InterestListScreen', () => {
     await findByText('No interests yet');
 
     await act(async () => {
-      fireEvent.press(await findByText('One-time project'));
+      fireEvent.press(await findByText('In progress · All'));
+    });
+    await act(async () => {
+      fireEvent.press(await findByText('Trials'));
     });
 
     expect(listSpy).toHaveBeenLastCalledWith(

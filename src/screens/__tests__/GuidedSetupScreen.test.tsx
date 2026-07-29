@@ -216,7 +216,7 @@ describe('GuidedSetupScreen', () => {
     await findByText('What kind of interest is this?');
 
     await act(async () => {
-      fireEvent.press(await findByText('Unstructured learning'));
+      fireEvent.press(await findByText('Evergreens'));
     });
 
     expect(interestService.update).toHaveBeenCalledWith('interest-1', {
