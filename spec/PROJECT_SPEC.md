@@ -105,6 +105,19 @@ Completion is **always user-declared** and never auto-forced — the app only *o
 it at the natural moment. Interests can be re-opened, and Steps added after a
 "completion."
 
+**Due date** _(added 2026-07-28, Phase 2)_ — an Interest may carry an optional
+`dueBy` date ("done before Halloween", "before the Renaissance Faire"). It is captured
+contextually inside the guided flow — offered as a follow-up on the `Season` and
+`TimeOfDay` branches of `WeatherSeason`, where a deadline naturally comes up — but
+**stored once, on the Interest**, never inside a constraint value. Two branches can ask
+for it, so one canonical home prevents conflicting dates and lets the engine query it
+without unpacking JSON.
+
+`dueBy` **affects ordering only, and never nags.** As the date approaches, the interest
+climbs the recommendations; it never produces a notification, badge, reminder, or any
+other push. A missed `dueBy` does not fail, flag, or hide the interest — Greenhouse
+does not scold.
+
 ### Constraint
 
 A condition affecting whether an Interest can be pursued, across eight
@@ -123,6 +136,62 @@ Recommendation Engine's requirement. `value` is JSON-encoded per dimension, and
 constraint rows are removed via `ON DELETE CASCADE` when the parent Interest is
 deleted. `EnergyFocus` is a valid, stored dimension from Phase 2 onward but has
 no question card until a later phase (see Feature Roadmap).
+
+**Why the questionnaire exists** — it is **not** an attempt to understand the user's
+task. It collects user-defined data so that (1) the user can read their interest back
+as a single useful reference, and (2) the recommendation engine has something concrete
+to match on. Every question must therefore produce a **structured, queryable** answer.
+Free-text answers fail both purposes at once — they are neither easy to read back at a
+glance nor usable by the engine — so prose belongs in the journal (see
+[Note](#note-the-interests-journal)), never in a constraint value.
+
+**`WeatherSeason` answer shape** _(revised 2026-07-28, Phase 2)_ — a `Set` answer is a
+discriminated union over what actually matters, replacing the original free-text note:
+
+- `{ kind: 'Weather', conditions: WeatherCondition[] }` — multi-select (e.g. sunny,
+  overcast, dry). "Only in good light, but overcast is fine."
+- `{ kind: 'TimeOfDay', times: TimeOfDay[] }` — multi-select (morning, afternoon,
+  evening, night). "Stargazing only works at night."
+- `{ kind: 'Season', seasons: Season[] }` — multi-select (spring, summer, fall,
+  winter). "This is a fall craft."
+
+This stays **one dimension with a branching value** rather than three new dimensions:
+no migration, no `CHECK` constraint change, and the covered-axis flow stays six cards.
+It also keeps `TimeOfDay` (time of day) from colliding with the separate `Time`
+dimension (how long a session takes) — they are different questions and must never
+share a name.
+
+### Note _(the interest's journal)_
+
+A user-authored entry in an Interest's **journal** — a research space the user owns
+outright (e.g. "rented a violin from the shop on 5th", "teacher nearby has a
+waitlist"). Each note has an optional short title, a free-text body, and its own
+`createdAt`.
+
+The journal exists because **the app cannot anticipate every kind of detail an
+interest needs.** Constraints capture the structured facts Greenhouse knows how to
+reason about; the journal is deliberate open space for everything else, so the user
+is never blocked by a field we failed to imagine. Together they make the Interest a
+single place to read back everything known about it.
+
+**Storage shape** _(resolved 2026-07-28, Phase 2)_ — **many notes per Interest**, each
+an independent row. A note is an observation made at a moment, and collapsing them
+into one mutable text field would lose when each was written. Notes display
+**newest-first**, with **pinned** notes held above the rest; `pinned` is a boolean on
+the note. Notes are individually addressable and are removed via `ON DELETE CASCADE`
+when the parent Interest is deleted — matching the `constraints` table's parentage.
+
+**Surface** — the journal is **its own screen**, reached from an icon on the Interest
+Detail screen. It is deliberately *not* part of the guided questionnaire: the
+questionnaire is a fast, structured, answerable flow, and free-form writing does not
+belong in it.
+
+Notes **carry no semantics**: the recommendation engine never parses, matches, scores,
+or reads them, and they never affect feasibility or ordering. Anything the engine must
+reason about belongs in a `Constraint` or a first-class Interest field, never in a
+note. Notes are also distinct from the `notes` field on `Session` (about one
+engagement) and on `Reflection` (about how an engagement felt) — a journal note is
+about the interest itself and is tied to no engagement.
 
 ### Session
 
@@ -279,6 +348,20 @@ interests before soft-blocked ones. There is no scoring by desirability, history
 activation-energy weighting — feasibility status and soft warnings are the only
 signals.
 
+**Closing-window ordering** _(added 2026-07-28)_ — within the fully-feasible group,
+an interest whose `dueBy` is approaching sorts higher, weighted by proximity. This is
+**not** a preference model and does not reverse the resolved decision above: it ranks
+by how soon an opportunity closes, never by how much the user enjoyed something before.
+No history, reflection, or analytics data is consulted. Interests without a `dueBy`
+are never penalised, and the bump produces ordering only — never a push (see
+[Interest → Due date](#interest-primary-entity)).
+
+**Season and time-of-day are feasibility, not preference** — a `Season` requirement
+that does not match the current date is a **hard block**: a fall craft in spring is
+genuinely not doable, so it is excluded rather than demoted. `TimeOfDay` and `Weather`
+requirements evaluate against the current `UserContext` exactly like every other
+dimension.
+
 ### Structured interests — recommend the next Step
 
 For a `StructuredLearning` interest the unit evaluated is its *next incomplete Step*,
@@ -330,6 +413,13 @@ interface ConstraintService {                  // added Phase 2 — no screen ma
   needsEnrichment(interestIds: InterestId[], dimensions: ConstraintDimension[]): Promise<Set<InterestId>>; // interests among interestIds not fully answered on all given dimensions
 }
 
+interface NoteService {                        // added Phase 2 — no screen may call NoteRepository directly
+  listForInterest(interestId: InterestId): Promise<Note[]>; // pinned first, then newest-first
+  add(interestId: InterestId, input: { title?: string; body: string }): Promise<Note>; // rejects blank/whitespace-only body
+  update(noteId: NoteId, patch: Partial<Pick<Note, 'title' | 'body' | 'pinned'>>): Promise<Note>;
+  remove(noteId: NoteId): Promise<void>;
+}
+
 interface RecommendationService {
   recommend(context: UserContext, options?: { includeCompleted?: boolean }): Promise<Recommendation[]>;
 }
@@ -377,6 +467,13 @@ interface ConstraintRepository {
   findForInterest(interestId: InterestId): Promise<Constraint[]>;
   replaceForInterest(interestId: InterestId, constraints: Constraint[]): Promise<void>; // per-dimension upsert; dimensions absent from the call are left untouched, not a wipe-and-reinsert
   findFullyAnsweredInterestIds(interestIds: InterestId[], dimensions: ConstraintDimension[]): Promise<Set<InterestId>>; // added Phase 2 — bulk check to avoid N+1 queries
+}
+
+interface NoteRepository {
+  findForInterest(interestId: InterestId): Promise<Note[]>; // pinned DESC, then createdAt DESC
+  insert(note: NewNote): Promise<Note>;
+  update(id: NoteId, patch: Partial<Pick<Note, 'title' | 'body' | 'pinned'>>): Promise<Note>;
+  remove(id: NoteId): Promise<void>;
 }
 
 interface SessionRepository {
@@ -440,6 +537,27 @@ design tokens. Read it before expanding Phases 0, 2, 3, and 5–7 into tickets.
   context to the interest's requirements. Soft = shown with a warning; hard = excluded
   from recommendations (still in the backlog). Constraint storage shape is left to
   Phase 2 (see Open Questions).
+- **Each Interest has a journal, not a notes field** _(2026-07-28)_ — raised during
+  Phase 2 UAT; notes had no prior home in the spec (they existed only on `Session` and
+  `Reflection`). A `Note` entity attaches many entries to an Interest — optional title,
+  body, `pinned` flag — on **its own screen** reached from Interest Detail. Deliberately
+  *not* a single mutable `notes` column: a note is an observation made at a moment, and
+  one blob loses when each was written. The journal exists because the app cannot
+  anticipate every detail an interest needs; it is open space the user owns, so nobody
+  is blocked by a field we failed to imagine. Notes carry no semantics — the engine
+  never reads them. The questionnaire is not a notes surface: it stays fast and
+  structured, and prose lives in the journal.
+- **Constraint answers must be structured, never free text** _(2026-07-28)_ — the
+  original `WeatherSeason` shape (`{ matters, note? }`) captured prose the engine could
+  not use and the user could not scan. Replaced with a discriminated union over
+  `Weather` / `TimeOfDay` / `Season`. The questionnaire exists to produce queryable data
+  and a readable one-place reference — free text serves neither.
+- **`dueBy` orders, never pushes** _(2026-07-28)_ — an optional due date on Interest,
+  captured inside the `Season`/`TimeOfDay` branches but stored once on the Interest.
+  Proximity raises an interest within the feasible set. This does not reverse the
+  feasibility-filter decision: it ranks by how soon an opportunity closes, not by how
+  much the user liked something before. No notifications, badges, or reminders, and a
+  missed date never flags or hides anything.
 - **Archive = soft-delete flag** _(2026-07-16)_ — `archivedAt` timestamp, orthogonal
   to the `Backlog/InProgress/Complete` lifecycle; archived interests are hidden from
   default views but recoverable. Delete is a separate, permanent hard removal.
