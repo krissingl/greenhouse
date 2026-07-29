@@ -60,6 +60,7 @@ export default function InterestListScreen({ navigation }: Props): ReactElement 
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [stateFilter, setStateFilter] = useState<StateFilterOption>('All');
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [needsEnrichmentIds, setNeedsEnrichmentIds] = useState<Set<InterestId>>(new Set());
   const [bannerDismissed, setBannerDismissed] = useState(false);
 
@@ -121,6 +122,21 @@ export default function InterestListScreen({ navigation }: Props): ReactElement 
     }
   };
 
+  const handleStart = async (id: InterestId) => {
+    try {
+      setActionError(null);
+      const updated = await interestService.setState(id, 'InProgress');
+      setInterests((prev) => {
+        const next = prev.map((interest) => (interest.id === id ? updated : interest));
+        const stillMatchesFilter =
+          stateFilter === 'All' || stateFilter === 'Archived' || updated.state === stateFilter;
+        return stillMatchesFilter ? next : next.filter((interest) => interest.id !== id);
+      });
+    } catch {
+      setActionError('Could not start this interest. Please try again.');
+    }
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <TextInput
@@ -166,6 +182,18 @@ export default function InterestListScreen({ navigation }: Props): ReactElement 
           {loadError}
         </Text>
       )}
+      {actionError && (
+        <Text
+          style={{
+            color: theme.colors.error,
+            fontSize: theme.typography.caption.size,
+            marginHorizontal: 16,
+            marginTop: 8,
+          }}
+        >
+          {actionError}
+        </Text>
+      )}
       {!bannerDismissed && needsEnrichmentIds.size > 0 && (
         <View style={[styles.banner, { backgroundColor: theme.colors.primaryContainer }]}>
           <Pressable style={styles.bannerText} onPress={handleBannerPress}>
@@ -186,6 +214,7 @@ export default function InterestListScreen({ navigation }: Props): ReactElement 
           <InterestListItem
             interest={item}
             onPress={() => navigation.navigate('InterestDetail', { interestId: item.id })}
+            onStart={() => handleStart(item.id)}
           />
         )}
         ListEmptyComponent={

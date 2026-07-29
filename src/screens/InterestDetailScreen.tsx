@@ -1,7 +1,7 @@
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useState, type ReactElement } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { NavigationRow, OptionGroup } from '../components/OptionGroup';
 import type { Constraint } from '../domain/constraint';
@@ -131,40 +131,14 @@ export default function InterestDetailScreen({ route, navigation }: Props): Reac
     );
   }
 
-  const isArchived = interest.archivedAt !== null;
-
-  const handleArchiveToggle = async () => {
+  const handleStart = async () => {
     try {
       setActionError(null);
-      if (isArchived) {
-        const updated = await interestService.unarchive(interestId);
-        setInterest(updated);
-      } else {
-        await interestService.archive(interestId);
-        navigation.navigate('InterestList');
-      }
+      const updated = await interestService.setState(interestId, 'InProgress');
+      setInterest(updated);
     } catch {
-      setActionError('Could not update this interest. Please try again.');
+      setActionError('Could not start this interest. Please try again.');
     }
-  };
-
-  const handleDelete = () => {
-    Alert.alert('Delete this interest?', 'This cannot be undone.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            setActionError(null);
-            await interestService.delete(interestId);
-            navigation.navigate('InterestList');
-          } catch {
-            setActionError('Could not delete this interest. Please try again.');
-          }
-        },
-      },
-    ]);
   };
 
   const capabilityCopy = describeCapability(constraints, interest.type, interest.typeSkippedAt);
@@ -197,59 +171,54 @@ export default function InterestDetailScreen({ route, navigation }: Props): Reac
         {capabilityCopy}
       </Text>
 
-      <View style={styles.chipRow}>
-        <OptionGroup>
-          {COVERED_AXES.map((axis, index) => {
-            const chip = chipDisplayFor(axis, interest, constraints);
-            return (
-              <NavigationRow
-                key={axis}
-                label={chip.text}
-                emphasis={chip.answered}
-                onPress={() =>
-                  navigation.navigate('GuidedSetup', { interestId, startDimension: axis })
-                }
-                isLast={index === COVERED_AXES.length - 1}
-              />
-            );
-          })}
-        </OptionGroup>
-      </View>
-
-      <Pressable
-        onPress={() => navigation.navigate('GuidedSetup', { interestId })}
-        style={[styles.button, { backgroundColor: theme.colors.tertiary }]}
-      >
-        <Text style={{ color: theme.colors.textOnPrimary }}>＋ Tell me more</Text>
-      </Pressable>
-
       {actionError && (
         <Text style={{ color: theme.colors.error, marginTop: theme.spacing.sm }}>
           {actionError}
         </Text>
       )}
 
+      {interest.state === 'Backlog' && (
+        <Pressable
+          onPress={handleStart}
+          style={[styles.button, { backgroundColor: theme.colors.primary }]}
+        >
+          <Text style={{ color: theme.colors.textOnPrimary }}>Start</Text>
+        </Pressable>
+      )}
+
+      <View style={styles.tellMeMoreGroup}>
+        <View style={styles.chipRow}>
+          <OptionGroup>
+            {COVERED_AXES.map((axis, index) => {
+              const chip = chipDisplayFor(axis, interest, constraints);
+              return (
+                <NavigationRow
+                  key={axis}
+                  label={chip.text}
+                  emphasis={chip.answered}
+                  onPress={() =>
+                    navigation.navigate('GuidedSetup', { interestId, startDimension: axis })
+                  }
+                  isLast={index === COVERED_AXES.length - 1}
+                />
+              );
+            })}
+          </OptionGroup>
+        </View>
+
+        <Pressable
+          onPress={() => navigation.navigate('GuidedSetup', { interestId })}
+          style={[styles.button, styles.tellMeMoreButton, { backgroundColor: theme.colors.tertiary }]}
+        >
+          <Text style={{ color: theme.colors.textOnPrimary }}>＋ Tell me more</Text>
+        </Pressable>
+      </View>
+
       <Pressable
         onPress={() => navigation.navigate('EditInterest', { interestId })}
-        style={[styles.button, { backgroundColor: theme.colors.primary }]}
+        style={[styles.button, styles.editButton, { backgroundColor: theme.colors.surfaceVariant }]}
       >
-        <Text style={{ color: theme.colors.textOnPrimary }}>Edit</Text>
-      </Pressable>
-
-      <Pressable
-        onPress={handleArchiveToggle}
-        style={[styles.button, { backgroundColor: theme.colors.secondary }]}
-      >
-        <Text style={{ color: theme.colors.textOnPrimary }}>
-          {isArchived ? 'Unarchive' : 'Archive'}
-        </Text>
-      </Pressable>
-
-      <Pressable
-        onPress={handleDelete}
-        style={[styles.button, { backgroundColor: theme.colors.error }]}
-      >
-        <Text style={{ color: theme.colors.textOnPrimary }}>Delete</Text>
+        <Text style={{ color: theme.colors.text }}>Edit</Text>
       </Pressable>
     </View>
   );
@@ -269,5 +238,14 @@ const styles = StyleSheet.create({
   },
   chipRow: {
     marginTop: 12,
+  },
+  tellMeMoreGroup: {
+    marginTop: 20,
+  },
+  tellMeMoreButton: {
+    marginTop: 12,
+  },
+  editButton: {
+    marginTop: 28,
   },
 });

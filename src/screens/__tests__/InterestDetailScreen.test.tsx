@@ -64,20 +64,65 @@ async function renderScreen(navigation: {
 }
 
 describe('InterestDetailScreen', () => {
-  it('shows inline feedback and does not navigate away when archiving fails', async () => {
+  it('shows the Start button for a Backlog interest and transitions it to InProgress in place', async () => {
     jest.spyOn(interestService, 'get').mockResolvedValueOnce(INTEREST);
     jest.spyOn(constraintService, 'listForInterest').mockResolvedValueOnce(makeConstraints());
-    jest.spyOn(interestService, 'archive').mockRejectedValueOnce(new Error('boom'));
+    jest
+      .spyOn(interestService, 'setState')
+      .mockResolvedValueOnce({ ...INTEREST, state: 'InProgress' });
+    const navigation = { navigate: jest.fn() };
+
+    const { findByText, queryByText } = await renderScreen(navigation);
+
+    await act(async () => {
+      fireEvent.press(await findByText('Start'));
+    });
+
+    expect(interestService.setState).toHaveBeenCalledWith('interest-1', 'InProgress');
+    expect(await findByText('State: In progress')).toBeTruthy();
+    expect(queryByText('Start')).toBeNull();
+    expect(navigation.navigate).not.toHaveBeenCalled();
+  });
+
+  it('hides the Start button for an interest that is not Backlog', async () => {
+    jest
+      .spyOn(interestService, 'get')
+      .mockResolvedValueOnce({ ...INTEREST, state: 'InProgress' });
+    jest.spyOn(constraintService, 'listForInterest').mockResolvedValueOnce(makeConstraints());
+    const navigation = { navigate: jest.fn() };
+
+    const { findByText, queryByText } = await renderScreen(navigation);
+
+    await findByText('Learn violin');
+    expect(queryByText('Start')).toBeNull();
+  });
+
+  it('shows inline feedback and does not navigate away when starting fails', async () => {
+    jest.spyOn(interestService, 'get').mockResolvedValueOnce(INTEREST);
+    jest.spyOn(constraintService, 'listForInterest').mockResolvedValueOnce(makeConstraints());
+    jest.spyOn(interestService, 'setState').mockRejectedValueOnce(new Error('boom'));
     const navigation = { navigate: jest.fn() };
 
     const { findByText } = await renderScreen(navigation);
 
     await act(async () => {
-      fireEvent.press(await findByText('Archive'));
+      fireEvent.press(await findByText('Start'));
     });
 
-    expect(await findByText('Could not update this interest. Please try again.')).toBeTruthy();
+    expect(await findByText('Could not start this interest. Please try again.')).toBeTruthy();
     expect(navigation.navigate).not.toHaveBeenCalledWith('InterestList');
+  });
+
+  it('does not render Archive/Delete on Interest Detail', async () => {
+    jest.spyOn(interestService, 'get').mockResolvedValueOnce(INTEREST);
+    jest.spyOn(constraintService, 'listForInterest').mockResolvedValueOnce(makeConstraints());
+    const navigation = { navigate: jest.fn() };
+
+    const { findByText, queryByText } = await renderScreen(navigation);
+
+    await findByText('Learn violin');
+    expect(queryByText('Archive')).toBeNull();
+    expect(queryByText('Delete')).toBeNull();
   });
 
   it('shows inline feedback when loading the interest fails', async () => {

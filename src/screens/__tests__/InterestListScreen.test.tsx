@@ -127,4 +127,64 @@ describe('InterestListScreen', () => {
       ['Time', 'Supplies', 'Location', 'Social', 'WeatherSeason'],
     );
   });
+
+  it('shows a Start button on Backlog rows and updates the row in place with no navigation', async () => {
+    jest
+      .spyOn(interestService, 'list')
+      .mockResolvedValueOnce([makeInterest({ id: 'interest-1', state: 'Backlog' })]);
+    jest.spyOn(constraintService, 'needsEnrichment').mockResolvedValueOnce(new Set());
+    jest
+      .spyOn(interestService, 'setState')
+      .mockResolvedValueOnce(makeInterest({ id: 'interest-1', state: 'InProgress' }));
+    const navigation = { navigate: jest.fn() };
+
+    const { findByText, queryByText } = await renderScreen(navigation);
+
+    await act(async () => {
+      fireEvent.press(await findByText('Start'));
+    });
+
+    expect(interestService.setState).toHaveBeenCalledWith('interest-1', 'InProgress');
+    expect(navigation.navigate).not.toHaveBeenCalled();
+    expect(await findByText('InProgress')).toBeTruthy();
+    expect(queryByText('Start')).toBeNull();
+  });
+
+  it('does not show a Start button for non-Backlog rows', async () => {
+    jest
+      .spyOn(interestService, 'list')
+      .mockResolvedValueOnce([makeInterest({ id: 'interest-1', state: 'InProgress' })]);
+    jest.spyOn(constraintService, 'needsEnrichment').mockResolvedValueOnce(new Set());
+    const navigation = { navigate: jest.fn() };
+
+    const { findByText, queryByText } = await renderScreen(navigation);
+
+    await findByText('Learn violin');
+    expect(queryByText('Start')).toBeNull();
+  });
+
+  it('removes the row from view when starting an interest no longer matches the active Backlog filter', async () => {
+    jest
+      .spyOn(interestService, 'list')
+      .mockResolvedValue([makeInterest({ id: 'interest-1', state: 'Backlog' })]);
+    jest.spyOn(constraintService, 'needsEnrichment').mockResolvedValue(new Set());
+    jest
+      .spyOn(interestService, 'setState')
+      .mockResolvedValueOnce(makeInterest({ id: 'interest-1', state: 'InProgress' }));
+    const navigation = { navigate: jest.fn() };
+
+    const { findByText, findAllByText, queryByText } = await renderScreen(navigation);
+    await findByText('Learn violin');
+
+    const backlogChip = (await findAllByText('Backlog'))[0];
+    await act(async () => {
+      fireEvent.press(backlogChip);
+    });
+
+    await act(async () => {
+      fireEvent.press(await findByText('Start'));
+    });
+
+    expect(queryByText('Learn violin')).toBeNull();
+  });
 });

@@ -1,6 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useEffect, useState, type ReactElement } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { displayLabel, validateTitle, type InterestState } from '../domain/interest';
 import type { RootStackParamList } from '../navigation/RootNavigator';
@@ -16,10 +16,12 @@ export default function EditInterestScreen({ route, navigation }: Props): ReactE
   const { interestId } = route.params;
   const [title, setTitle] = useState('');
   const [state, setState] = useState<InterestState>('Backlog');
+  const [archivedAt, setArchivedAt] = useState<string | null>(null);
   const [touched, setTouched] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -30,6 +32,7 @@ export default function EditInterestScreen({ route, navigation }: Props): ReactE
         if (!cancelled && interest) {
           setTitle(interest.title);
           setState(interest.state);
+          setArchivedAt(interest.archivedAt);
           setLoaded(true);
         }
       })
@@ -43,6 +46,42 @@ export default function EditInterestScreen({ route, navigation }: Props): ReactE
       cancelled = true;
     };
   }, [interestId]);
+
+  const isArchived = archivedAt !== null;
+
+  const handleArchiveToggle = async () => {
+    try {
+      setActionError(null);
+      if (isArchived) {
+        const updated = await interestService.unarchive(interestId);
+        setArchivedAt(updated.archivedAt);
+      } else {
+        await interestService.archive(interestId);
+        navigation.navigate('InterestList');
+      }
+    } catch {
+      setActionError('Could not update this interest. Please try again.');
+    }
+  };
+
+  const handleDelete = () => {
+    Alert.alert('Delete this interest?', 'This cannot be undone.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            setActionError(null);
+            await interestService.delete(interestId);
+            navigation.navigate('InterestList');
+          } catch {
+            setActionError('Could not delete this interest. Please try again.');
+          }
+        },
+      },
+    ]);
+  };
 
   const showError = touched && !validateTitle(title);
 
@@ -130,6 +169,23 @@ export default function EditInterestScreen({ route, navigation }: Props): ReactE
           Save
         </Text>
       </Pressable>
+
+      {actionError && (
+        <Text style={{ color: theme.colors.error, marginTop: theme.spacing.md }}>
+          {actionError}
+        </Text>
+      )}
+
+      <View style={styles.lowKeyRow}>
+        <Pressable onPress={handleArchiveToggle} style={styles.lowKeyButton}>
+          <Text style={{ color: theme.colors.textSecondary }}>
+            {isArchived ? 'Unarchive' : 'Archive'}
+          </Text>
+        </Pressable>
+        <Pressable onPress={handleDelete} style={styles.lowKeyButton}>
+          <Text style={{ color: theme.colors.textTertiary }}>Delete</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -159,5 +215,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 12,
     borderRadius: 8,
+  },
+  lowKeyRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 24,
+    marginTop: 40,
+  },
+  lowKeyButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 8,
   },
 });

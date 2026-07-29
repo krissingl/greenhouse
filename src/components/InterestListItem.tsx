@@ -7,23 +7,24 @@ import { useTheme } from '../theme';
 interface InterestListItemProps {
   interest: Interest;
   onPress: () => void;
+  onStart?: () => void;
 }
 
 export default function InterestListItem({
   interest,
   onPress,
+  onStart,
 }: InterestListItemProps): ReactElement {
   const theme = useTheme();
 
   return (
-    <Pressable
-      onPress={onPress}
+    <View
       style={[
         styles.container,
         { borderBottomColor: theme.colors.divider, backgroundColor: theme.colors.surface },
       ]}
     >
-      <View>
+      <Pressable onPress={onPress} style={styles.mainArea}>
         <Text style={{ color: theme.colors.text, fontSize: theme.typography.body.size }}>
           {interest.title}
         </Text>
@@ -36,15 +37,37 @@ export default function InterestListItem({
         >
           {interest.state}
         </Text>
-      </View>
-    </Pressable>
+      </Pressable>
+
+      {interest.state === 'Backlog' && onStart && (
+        <Pressable
+          onPress={onStart}
+          style={[styles.startButton, { backgroundColor: theme.colors.primary }]}
+        >
+          <Text style={{ color: theme.colors.textOnPrimary, fontSize: theme.typography.caption.size }}>
+            Start
+          </Text>
+        </Pressable>
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  mainArea: {
+    flex: 1,
+  },
+  startButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 8,
   },
 });
