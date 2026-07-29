@@ -288,7 +288,7 @@ export default function EnrichmentCard({
 
 function ClearAnswerButton({ onPress }: { onPress: () => void }): ReactElement {
   const theme = useTheme();
-  const anim = useRef(new Animated.Value(0)).current;
+  const [anim] = useState(() => new Animated.Value(0));
 
   useEffect(() => {
     Animated.timing(anim, {
