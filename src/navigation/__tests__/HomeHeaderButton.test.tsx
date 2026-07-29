@@ -8,7 +8,7 @@ describe('HomeHeaderButton', () => {
   it('resets the stack to InterestList when pressed', async () => {
     const navigation = { reset: jest.fn() };
 
-    const { getByText } = await render(
+    const { getByLabelText } = await render(
       (
         <ThemeProvider>
           <HomeHeaderButton
@@ -18,11 +18,28 @@ describe('HomeHeaderButton', () => {
       ) as ReactElement,
     );
 
-    fireEvent.press(getByText('Home'));
+    fireEvent.press(getByLabelText('Home'));
 
     expect(navigation.reset).toHaveBeenCalledWith({
       index: 0,
       routes: [{ name: 'InterestList' }],
     });
+  });
+
+  it('renders as an icon, not the word "Home"', async () => {
+    const navigation = { reset: jest.fn() };
+
+    const { queryByText, getByLabelText } = await render(
+      (
+        <ThemeProvider>
+          <HomeHeaderButton
+            navigation={navigation as unknown as Parameters<typeof HomeHeaderButton>[0]['navigation']}
+          />
+        </ThemeProvider>
+      ) as ReactElement,
+    );
+
+    expect(getByLabelText('Home')).toBeTruthy();
+    expect(queryByText('Home')).toBeNull();
   });
 });

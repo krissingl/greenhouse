@@ -9,6 +9,7 @@ import type { EnrichmentAxis } from '../screens/enrichmentQuestions';
 import GuidedSetupScreen from '../screens/GuidedSetupScreen';
 import InterestDetailScreen from '../screens/InterestDetailScreen';
 import InterestListScreen from '../screens/InterestListScreen';
+import NoteJournalScreen from '../screens/NoteJournalScreen';
 
 export type RootStackParamList = {
   InterestList: undefined;
@@ -16,6 +17,7 @@ export type RootStackParamList = {
   InterestDetail: { interestId: string };
   EditInterest: { interestId: string };
   GuidedSetup: { interestId: string; startDimension?: EnrichmentAxis };
+  NoteJournal: { interestId: string };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -41,7 +43,15 @@ export default function RootNavigator(): ReactElement {
           name="InterestDetail"
           component={InterestDetailScreen}
           options={({ navigation }) => ({
-            title: 'Interest',
+            title: '',
+            headerLeft: () => <HeaderLeftControls navigation={navigation} />,
+          })}
+        />
+        <Stack.Screen
+          name="NoteJournal"
+          component={NoteJournalScreen}
+          options={({ navigation }) => ({
+            title: 'Journal',
             headerLeft: () => <HeaderLeftControls navigation={navigation} />,
           })}
         />

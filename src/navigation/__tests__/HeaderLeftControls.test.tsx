@@ -5,42 +5,10 @@ import { ThemeProvider } from '../../theme';
 import HeaderLeftControls from '../HeaderLeftControls';
 
 describe('HeaderLeftControls', () => {
-  it('renders Back and Home together when the screen can go back', async () => {
+  it('renders only the Home icon — no Back control, regardless of navigation history', async () => {
     const navigation = { reset: jest.fn(), goBack: jest.fn(), canGoBack: () => true };
 
-    const { getByText } = await render(
-      (
-        <ThemeProvider>
-          <HeaderLeftControls
-            navigation={
-              navigation as unknown as Parameters<typeof HeaderLeftControls>[0]['navigation']
-            }
-          />
-        </ThemeProvider>
-      ) as ReactElement,
-    );
-
-    expect(getByText('‹ Back')).toBeTruthy();
-    expect(getByText('Home')).toBeTruthy();
-
-    await act(async () => {
-      fireEvent.press(getByText('‹ Back'));
-    });
-    expect(navigation.goBack).toHaveBeenCalled();
-
-    await act(async () => {
-      fireEvent.press(getByText('Home'));
-    });
-    expect(navigation.reset).toHaveBeenCalledWith({
-      index: 0,
-      routes: [{ name: 'InterestList' }],
-    });
-  });
-
-  it('omits Back when the screen cannot go back', async () => {
-    const navigation = { reset: jest.fn(), goBack: jest.fn(), canGoBack: () => false };
-
-    const { queryByText, getByText } = await render(
+    const { getByLabelText, queryByText } = await render(
       (
         <ThemeProvider>
           <HeaderLeftControls
@@ -53,6 +21,15 @@ describe('HeaderLeftControls', () => {
     );
 
     expect(queryByText('‹ Back')).toBeNull();
-    expect(getByText('Home')).toBeTruthy();
+    expect(getByLabelText('Home')).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.press(getByLabelText('Home'));
+    });
+    expect(navigation.reset).toHaveBeenCalledWith({
+      index: 0,
+      routes: [{ name: 'InterestList' }],
+    });
+    expect(navigation.goBack).not.toHaveBeenCalled();
   });
 });

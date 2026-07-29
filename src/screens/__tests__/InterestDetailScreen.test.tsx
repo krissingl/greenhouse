@@ -7,7 +7,7 @@ import type { Interest } from '../../domain/interest';
 import { constraintService } from '../../services/ConstraintService';
 import { interestService } from '../../services/InterestService';
 import { ThemeProvider } from '../../theme';
-import InterestDetailScreen from '../InterestDetailScreen';
+import InterestDetailScreen, { __resetCapabilityTipDismissedForTests } from '../InterestDetailScreen';
 
 const DIMENSIONS: ConstraintDimension[] = [
   'Time',
@@ -45,6 +45,16 @@ function makeConstraints(
   }));
 }
 
+function makeFullyAnsweredConstraints(): Constraint[] {
+  return makeConstraints({
+    Time: { status: 'Set', value: '15-30' },
+    Supplies: { status: 'None' },
+    Location: { status: 'Set', value: 'Home' },
+    Social: { status: 'Set', value: 'Solo' },
+    WeatherSeason: { status: 'None' },
+  });
+}
+
 async function renderScreen(navigation: {
   navigate: jest.Mock;
 }): Promise<ReturnType<typeof render>> {
@@ -65,6 +75,10 @@ async function renderScreen(navigation: {
 }
 
 describe('InterestDetailScreen', () => {
+  beforeEach(() => {
+    __resetCapabilityTipDismissedForTests();
+  });
+
   it('shows the Start button for a Backlog interest and transitions it to InProgress in place', async () => {
     jest.spyOn(interestService, 'get').mockResolvedValueOnce(INTEREST);
     jest.spyOn(constraintService, 'listForInterest').mockResolvedValueOnce(makeConstraints());
@@ -80,7 +94,7 @@ describe('InterestDetailScreen', () => {
     });
 
     expect(interestService.setState).toHaveBeenCalledWith('interest-1', 'InProgress');
-    expect(await findByText('State: In progress')).toBeTruthy();
+    expect(await findByText('In progress')).toBeTruthy();
     expect(queryByText('Start')).toBeNull();
     expect(navigation.navigate).not.toHaveBeenCalled();
   });
@@ -114,7 +128,7 @@ describe('InterestDetailScreen', () => {
     expect(navigation.navigate).not.toHaveBeenCalledWith('InterestList');
   });
 
-  it('does not render Archive/Delete on Interest Detail', async () => {
+  it('does not render a native page title, Archive, or Delete on Interest Detail', async () => {
     jest.spyOn(interestService, 'get').mockResolvedValueOnce(INTEREST);
     jest.spyOn(constraintService, 'listForInterest').mockResolvedValueOnce(makeConstraints());
     const navigation = { navigate: jest.fn() };
@@ -122,6 +136,7 @@ describe('InterestDetailScreen', () => {
     const { findByText, queryByText } = await renderScreen(navigation);
 
     await findByText('Learn violin');
+    expect(queryByText('Interest')).toBeNull();
     expect(queryByText('Archive')).toBeNull();
     expect(queryByText('Delete')).toBeNull();
   });
@@ -146,18 +161,18 @@ describe('InterestDetailScreen', () => {
     expect(await findByText('Could not load this interest. Please try again.')).toBeTruthy();
   });
 
-  it('renders a soft invitation chip for a never-touched axis', async () => {
+  it('renders a labelled row for a never-touched axis, reading "Not set"', async () => {
     jest.spyOn(interestService, 'get').mockResolvedValueOnce(INTEREST);
     jest.spyOn(constraintService, 'listForInterest').mockResolvedValueOnce(makeConstraints());
     const navigation = { navigate: jest.fn() };
 
     const { findByText } = await renderScreen(navigation);
 
-    expect(await findByText('＋ add time')).toBeTruthy();
-    expect(await findByText('＋ add type')).toBeTruthy();
+    expect(await findByText(/Time:\s*Not set/)).toBeTruthy();
+    expect(await findByText(/Type:\s*Not set/)).toBeTruthy();
   });
 
-  it('renders a filled chip summarizing a Set answer', async () => {
+  it('renders a labelled row summarizing a Set answer', async () => {
     jest.spyOn(interestService, 'get').mockResolvedValueOnce(INTEREST);
     jest
       .spyOn(constraintService, 'listForInterest')
@@ -166,10 +181,10 @@ describe('InterestDetailScreen', () => {
 
     const { findByText } = await renderScreen(navigation);
 
-    expect(await findByText('15–30 min')).toBeTruthy();
+    expect(await findByText(/Time:\s*15–30 min/)).toBeTruthy();
   });
 
-  it('renders a filled chip for a None answer', async () => {
+  it('renders a labelled row for a None answer, distinguishing which axis', async () => {
     jest.spyOn(interestService, 'get').mockResolvedValueOnce(INTEREST);
     jest
       .spyOn(constraintService, 'listForInterest')
@@ -178,10 +193,10 @@ describe('InterestDetailScreen', () => {
 
     const { findByText } = await renderScreen(navigation);
 
-    expect(await findByText("Doesn't apply")).toBeTruthy();
+    expect(await findByText(/Location:\s*Doesn't apply/)).toBeTruthy();
   });
 
-  it('renders a distinct answered-looking chip for a deliberately-skipped Type', async () => {
+  it('renders a distinct row for a deliberately-skipped Type', async () => {
     jest
       .spyOn(interestService, 'get')
       .mockResolvedValueOnce({ ...INTEREST, typeSkippedAt: '2026-07-02T00:00:00.000Z' });
@@ -190,23 +205,47 @@ describe('InterestDetailScreen', () => {
 
     const { findByText, queryByText } = await renderScreen(navigation);
 
-    expect(await findByText('Not sure yet')).toBeTruthy();
-    expect(queryByText('＋ add type')).toBeNull();
+    expect(await findByText(/Type:\s*Not sure yet/)).toBeTruthy();
+    expect(queryByText(/Type:\s*Not set/)).toBeNull();
   });
 
-  it('navigates to GuidedSetupScreen with the tapped chip axis as startDimension', async () => {
+  it('navigates to GuidedSetupScreen with the tapped row axis as startDimension via the edit icon', async () => {
     jest.spyOn(interestService, 'get').mockResolvedValueOnce(INTEREST);
     jest.spyOn(constraintService, 'listForInterest').mockResolvedValueOnce(makeConstraints());
     const navigation = { navigate: jest.fn() };
 
-    const { findByText } = await renderScreen(navigation);
+    const { findByLabelText } = await renderScreen(navigation);
 
-    fireEvent.press(await findByText('＋ add time'));
+    fireEvent.press(await findByLabelText('Add Time'));
 
     expect(navigation.navigate).toHaveBeenCalledWith('GuidedSetup', {
       interestId: 'interest-1',
       startDimension: 'Time',
     });
+  });
+
+  it('shows "＋ Tell me more" when an axis is unanswered and hides it once all axes are answered', async () => {
+    jest.spyOn(interestService, 'get').mockResolvedValueOnce(INTEREST);
+    jest.spyOn(constraintService, 'listForInterest').mockResolvedValueOnce(makeConstraints());
+    const navigation = { navigate: jest.fn() };
+
+    const { findByText } = await renderScreen(navigation);
+    expect(await findByText('＋ Tell me more')).toBeTruthy();
+  });
+
+  it('hides "＋ Tell me more" entirely when every axis is answered', async () => {
+    jest
+      .spyOn(interestService, 'get')
+      .mockResolvedValueOnce({ ...INTEREST, type: 'OneTimeProject' });
+    jest
+      .spyOn(constraintService, 'listForInterest')
+      .mockResolvedValueOnce(makeFullyAnsweredConstraints());
+    const navigation = { navigate: jest.fn() };
+
+    const { findByText, queryByText } = await renderScreen(navigation);
+    await findByText('Learn violin');
+
+    expect(queryByText('＋ Tell me more')).toBeNull();
   });
 
   it('navigates to GuidedSetupScreen with no startDimension from "＋ Tell me more"', async () => {
@@ -221,5 +260,77 @@ describe('InterestDetailScreen', () => {
     expect(navigation.navigate).toHaveBeenCalledWith('GuidedSetup', {
       interestId: 'interest-1',
     });
+  });
+
+  it('renders a collapsible Supplies section leading with Need it, expanding to list items', async () => {
+    jest.spyOn(interestService, 'get').mockResolvedValueOnce(INTEREST);
+    jest.spyOn(constraintService, 'listForInterest').mockResolvedValueOnce(
+      makeConstraints({
+        Supplies: {
+          status: 'Set',
+          value: [
+            { name: 'Canvas', have: true },
+            { name: 'Paint brush', have: false },
+          ],
+        },
+      }),
+    );
+    const navigation = { navigate: jest.fn() };
+
+    const { findByText, queryByText } = await renderScreen(navigation);
+
+    expect(await findByText(/Supplies:\s*1 need it · 1 have it/)).toBeTruthy();
+    expect(queryByText('Paint brush — need it')).toBeNull();
+
+    await act(async () => {
+      fireEvent.press(await findByText(/Supplies:\s*1 need it · 1 have it/));
+    });
+
+    expect(await findByText(/Paint brush/)).toBeTruthy();
+    expect(await findByText(/Canvas/)).toBeTruthy();
+  });
+
+  it('navigates to Edit via the title-row edit icon', async () => {
+    jest.spyOn(interestService, 'get').mockResolvedValueOnce(INTEREST);
+    jest.spyOn(constraintService, 'listForInterest').mockResolvedValueOnce(makeConstraints());
+    const navigation = { navigate: jest.fn() };
+
+    const { findByLabelText } = await renderScreen(navigation);
+
+    fireEvent.press(await findByLabelText('Edit'));
+
+    expect(navigation.navigate).toHaveBeenCalledWith('EditInterest', { interestId: 'interest-1' });
+  });
+
+  it('navigates to the journal via the notepad icon', async () => {
+    jest.spyOn(interestService, 'get').mockResolvedValueOnce(INTEREST);
+    jest.spyOn(constraintService, 'listForInterest').mockResolvedValueOnce(makeConstraints());
+    const navigation = { navigate: jest.fn() };
+
+    const { findByLabelText } = await renderScreen(navigation);
+
+    fireEvent.press(await findByLabelText('Journal'));
+
+    expect(navigation.navigate).toHaveBeenCalledWith('NoteJournal', { interestId: 'interest-1' });
+  });
+
+  it('dismisses the capability tip for the remainder of the session, not just this render', async () => {
+    jest.spyOn(interestService, 'get').mockResolvedValue(INTEREST);
+    jest.spyOn(constraintService, 'listForInterest').mockResolvedValue(makeConstraints());
+    const navigation = { navigate: jest.fn() };
+
+    const { findByLabelText, queryByLabelText, unmount } = await renderScreen(navigation);
+    await act(async () => {
+      fireEvent.press(await findByLabelText('Dismiss tip'));
+    });
+    expect(queryByLabelText('Dismiss tip')).toBeNull();
+
+    await act(async () => {
+      unmount();
+    });
+
+    const second = await renderScreen(navigation);
+    await second.findByText('Learn violin');
+    expect(second.queryByLabelText('Dismiss tip')).toBeNull();
   });
 });

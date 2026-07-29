@@ -18,9 +18,7 @@ export default function HomeHeaderButton({ navigation }: Props): ReactElement {
 
   return (
     <Pressable onPress={goHome} hitSlop={8} accessibilityRole="button" accessibilityLabel="Home">
-      <Text style={{ color: theme.colors.primary, fontSize: theme.typography.body.size }}>
-        Home
-      </Text>
+      <Text style={{ color: theme.colors.primary, fontSize: theme.typography.title.size }}>⌂</Text>
     </Pressable>
   );
 }
