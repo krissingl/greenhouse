@@ -2,7 +2,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { ReactElement } from 'react';
 
-import HomeHeaderButton from './HomeHeaderButton';
+import HeaderLeftControls from './HeaderLeftControls';
 import CreateInterestScreen from '../screens/CreateInterestScreen';
 import EditInterestScreen from '../screens/EditInterestScreen';
 import type { EnrichmentAxis } from '../screens/enrichmentQuestions';
@@ -27,14 +27,14 @@ export default function RootNavigator(): ReactElement {
         <Stack.Screen
           name="InterestList"
           component={InterestListScreen}
-          options={{ title: 'Interests' }}
+          options={{ title: 'Home' }}
         />
         <Stack.Screen
           name="CreateInterest"
           component={CreateInterestScreen}
           options={({ navigation }) => ({
             title: 'New Interest',
-            headerRight: () => <HomeHeaderButton navigation={navigation} />,
+            headerLeft: () => <HeaderLeftControls navigation={navigation} />,
           })}
         />
         <Stack.Screen
@@ -42,7 +42,7 @@ export default function RootNavigator(): ReactElement {
           component={InterestDetailScreen}
           options={({ navigation }) => ({
             title: 'Interest',
-            headerRight: () => <HomeHeaderButton navigation={navigation} />,
+            headerLeft: () => <HeaderLeftControls navigation={navigation} />,
           })}
         />
         <Stack.Screen
@@ -50,7 +50,7 @@ export default function RootNavigator(): ReactElement {
           component={EditInterestScreen}
           options={({ navigation }) => ({
             title: 'Edit Interest',
-            headerRight: () => <HomeHeaderButton navigation={navigation} />,
+            headerLeft: () => <HeaderLeftControls navigation={navigation} />,
           })}
         />
         <Stack.Screen
@@ -58,7 +58,7 @@ export default function RootNavigator(): ReactElement {
           component={GuidedSetupScreen}
           options={({ navigation }) => ({
             title: 'A few more details',
-            headerRight: () => <HomeHeaderButton navigation={navigation} />,
+            headerLeft: () => <HeaderLeftControls navigation={navigation} />,
           })}
         />
       </Stack.Navigator>

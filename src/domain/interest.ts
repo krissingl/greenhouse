@@ -26,6 +26,7 @@ export interface InterestFilter {
   type?: InterestType;
   query?: string;
   includeArchived?: boolean;
+  archivedOnly?: boolean;
 }
 
 export type InterestPatch = Partial<

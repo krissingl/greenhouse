@@ -187,4 +187,74 @@ describe('InterestListScreen', () => {
 
     expect(queryByText('Learn violin')).toBeNull();
   });
+
+  it('requests archived-only interests when the Archived filter is selected', async () => {
+    const listSpy = jest.spyOn(interestService, 'list').mockResolvedValue([]);
+    jest.spyOn(constraintService, 'needsEnrichment').mockResolvedValue(new Set());
+    const navigation = { navigate: jest.fn() };
+
+    const { findByText } = await renderScreen(navigation);
+    await findByText('No interests yet');
+
+    await act(async () => {
+      fireEvent.press(await findByText('Archived'));
+    });
+
+    expect(listSpy).toHaveBeenLastCalledWith(
+      expect.objectContaining({ archivedOnly: true }),
+    );
+    expect(listSpy.mock.calls.some(([filter]) => filter?.includeArchived === true)).toBe(false);
+  });
+
+  it('groups rows into type sections with a "No type yet" section at the bottom', async () => {
+    jest.spyOn(interestService, 'list').mockResolvedValueOnce([
+      makeInterest({ id: 'interest-1', title: 'Build shelves', type: 'OneTimeProject' }),
+      makeInterest({ id: 'interest-2', title: 'Learn violin', type: 'StructuredLearning' }),
+      makeInterest({ id: 'interest-3', title: 'Bake bread', type: null }),
+    ]);
+    jest.spyOn(constraintService, 'needsEnrichment').mockResolvedValueOnce(new Set());
+    const navigation = { navigate: jest.fn() };
+
+    const { findByText } = await renderScreen(navigation);
+
+    expect(await findByText('ONE-TIME PROJECT')).toBeTruthy();
+    expect(await findByText('STRUCTURED LEARNING')).toBeTruthy();
+    expect(await findByText('NO TYPE YET')).toBeTruthy();
+    expect(await findByText('Build shelves')).toBeTruthy();
+    expect(await findByText('Learn violin')).toBeTruthy();
+    expect(await findByText('Bake bread')).toBeTruthy();
+  });
+
+  it('does not render a section header for a type with no matching interests', async () => {
+    jest
+      .spyOn(interestService, 'list')
+      .mockResolvedValueOnce([
+        makeInterest({ id: 'interest-1', title: 'Build shelves', type: 'OneTimeProject' }),
+      ]);
+    jest.spyOn(constraintService, 'needsEnrichment').mockResolvedValueOnce(new Set());
+    const navigation = { navigate: jest.fn() };
+
+    const { findByText, queryByText } = await renderScreen(navigation);
+
+    await findByText('Build shelves');
+    expect(queryByText('STRUCTURED LEARNING')).toBeNull();
+    expect(queryByText('NO TYPE YET')).toBeNull();
+  });
+
+  it('requests a type filter when a type chip is selected', async () => {
+    const listSpy = jest.spyOn(interestService, 'list').mockResolvedValue([]);
+    jest.spyOn(constraintService, 'needsEnrichment').mockResolvedValue(new Set());
+    const navigation = { navigate: jest.fn() };
+
+    const { findByText } = await renderScreen(navigation);
+    await findByText('No interests yet');
+
+    await act(async () => {
+      fireEvent.press(await findByText('One-time project'));
+    });
+
+    expect(listSpy).toHaveBeenLastCalledWith(
+      expect.objectContaining({ type: 'OneTimeProject' }),
+    );
+  });
 });

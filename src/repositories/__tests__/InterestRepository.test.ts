@@ -108,6 +108,17 @@ describe('InterestRepository', () => {
 
       expect(results).toHaveLength(2);
     });
+
+    it('returns only archived interests when archivedOnly is true', async () => {
+      const archived = await repository.insert({ title: 'Archived one' });
+      await repository.update(archived.id, { archivedAt: new Date().toISOString() });
+      await repository.insert({ title: 'Active one' });
+
+      const results = await repository.query({ archivedOnly: true });
+
+      expect(results).toHaveLength(1);
+      expect(results[0].title).toBe('Archived one');
+    });
   });
 
   describe('update', () => {

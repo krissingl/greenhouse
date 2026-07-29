@@ -87,7 +87,9 @@ export class InterestRepository extends BaseRepository {
         params.push(`%${filter.query}%`);
       }
 
-      if (!filter.includeArchived) {
+      if (filter.archivedOnly) {
+        conditions.push('archived_at IS NOT NULL');
+      } else if (!filter.includeArchived) {
         conditions.push('archived_at IS NULL');
       }
 

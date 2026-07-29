@@ -1,11 +1,18 @@
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, SectionList, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import InterestListItem from '../components/InterestListItem';
 import type { ConstraintDimension } from '../domain/constraint';
-import { displayLabel, type Interest, type InterestFilter, type InterestId, type InterestState } from '../domain/interest';
+import {
+  displayLabel,
+  type Interest,
+  type InterestFilter,
+  type InterestId,
+  type InterestState,
+  type InterestType,
+} from '../domain/interest';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { COVERED_AXES, type EnrichmentAxis } from './enrichmentQuestions';
 import { constraintService } from '../services/ConstraintService';
@@ -35,9 +42,57 @@ function stateFilterLabel(option: StateFilterOption): string {
   return displayLabel(option as InterestState);
 }
 
+type TypeFilterOption = 'All' | InterestType;
+
+const TYPE_FILTER_OPTIONS: TypeFilterOption[] = [
+  'All',
+  'OneTimeProject',
+  'StructuredLearning',
+  'UnstructuredLearning',
+];
+
+function typeFilterLabel(option: TypeFilterOption): string {
+  return option === 'All' ? option : displayLabel(option);
+}
+
+const TYPE_SECTION_ORDER: InterestType[] = [
+  'OneTimeProject',
+  'StructuredLearning',
+  'UnstructuredLearning',
+];
+
+const NO_TYPE_SECTION_TITLE = 'No type yet';
+
+interface InterestSection {
+  title: string;
+  data: Interest[];
+}
+
+function groupByType(interests: Interest[]): InterestSection[] {
+  const sections: InterestSection[] = [];
+
+  for (const type of TYPE_SECTION_ORDER) {
+    const data = interests.filter((interest) => interest.type === type);
+    if (data.length > 0) {
+      sections.push({ title: displayLabel(type), data });
+    }
+  }
+
+  const untyped = interests.filter((interest) => interest.type === null);
+  if (untyped.length > 0) {
+    sections.push({ title: NO_TYPE_SECTION_TITLE, data: untyped });
+  }
+
+  return sections;
+}
+
 const SEARCH_DEBOUNCE_MS = 300;
 
-function buildFilter(stateFilter: StateFilterOption, debouncedQuery: string): InterestFilter {
+function buildFilter(
+  stateFilter: StateFilterOption,
+  typeFilter: TypeFilterOption,
+  debouncedQuery: string,
+): InterestFilter {
   const filter: InterestFilter = {};
 
   if (debouncedQuery.trim().length > 0) {
@@ -45,9 +100,13 @@ function buildFilter(stateFilter: StateFilterOption, debouncedQuery: string): In
   }
 
   if (stateFilter === 'Archived') {
-    filter.includeArchived = true;
+    filter.archivedOnly = true;
   } else if (stateFilter !== 'All') {
     filter.state = stateFilter;
+  }
+
+  if (typeFilter !== 'All') {
+    filter.type = typeFilter;
   }
 
   return filter;
@@ -59,6 +118,7 @@ export default function InterestListScreen({ navigation }: Props): ReactElement 
   const [searchInput, setSearchInput] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [stateFilter, setStateFilter] = useState<StateFilterOption>('All');
+  const [typeFilter, setTypeFilter] = useState<TypeFilterOption>('All');
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [needsEnrichmentIds, setNeedsEnrichmentIds] = useState<Set<InterestId>>(new Set());
@@ -77,7 +137,7 @@ export default function InterestListScreen({ navigation }: Props): ReactElement 
       let cancelled = false;
 
       interestService
-        .list(buildFilter(stateFilter, debouncedQuery))
+        .list(buildFilter(stateFilter, typeFilter, debouncedQuery))
         .then(async (results) => {
           if (cancelled) {
             return;
@@ -112,7 +172,7 @@ export default function InterestListScreen({ navigation }: Props): ReactElement 
       return () => {
         cancelled = true;
       };
-    }, [stateFilter, debouncedQuery]),
+    }, [stateFilter, typeFilter, debouncedQuery]),
   );
 
   const handleBannerPress = () => {
@@ -170,6 +230,30 @@ export default function InterestListScreen({ navigation }: Props): ReactElement 
           </Pressable>
         ))}
       </View>
+      <View style={styles.filterRow}>
+        {TYPE_FILTER_OPTIONS.map((option) => (
+          <Pressable
+            key={option}
+            onPress={() => setTypeFilter(option)}
+            style={[
+              styles.filterChip,
+              {
+                backgroundColor:
+                  typeFilter === option ? theme.colors.primary : theme.colors.surfaceVariant,
+              },
+            ]}
+          >
+            <Text
+              style={{
+                color: typeFilter === option ? theme.colors.textOnPrimary : theme.colors.text,
+                fontSize: theme.typography.caption.size,
+              }}
+            >
+              {typeFilterLabel(option)}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
       {loadError && (
         <Text
           style={{
@@ -206,8 +290,8 @@ export default function InterestListScreen({ navigation }: Props): ReactElement 
           </Pressable>
         </View>
       )}
-      <FlatList
-        data={interests}
+      <SectionList
+        sections={groupByType(interests)}
         keyExtractor={(item) => item.id}
         contentContainerStyle={interests.length === 0 ? styles.emptyContent : undefined}
         renderItem={({ item }) => (
@@ -216,6 +300,19 @@ export default function InterestListScreen({ navigation }: Props): ReactElement 
             onPress={() => navigation.navigate('InterestDetail', { interestId: item.id })}
             onStart={() => handleStart(item.id)}
           />
+        )}
+        renderSectionHeader={({ section }) => (
+          <View style={[styles.sectionHeader, { backgroundColor: theme.colors.background }]}>
+            <Text
+              style={{
+                color: theme.colors.textSecondary,
+                fontSize: theme.typography.caption.size,
+                fontWeight: theme.typography.caption.weight,
+              }}
+            >
+              {section.title.toUpperCase()}
+            </Text>
+          </View>
         )}
         ListEmptyComponent={
           <Text
@@ -283,6 +380,11 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  sectionHeader: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 4,
   },
   addButton: {
     position: 'absolute',
