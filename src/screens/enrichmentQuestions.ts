@@ -2,9 +2,26 @@ import type {
   ConstraintDimension,
   ConstraintStatus,
   ConstraintValue,
+  Season,
   SupplyItem,
+  TimeOfDay,
+  WeatherCondition,
+  WeatherSeasonConstraintValue,
 } from '../domain/constraint';
 import { displayLabel, type InterestType } from '../domain/interest';
+
+export const WEATHER_CONDITIONS: WeatherCondition[] = [
+  'Sunny',
+  'Overcast',
+  'Dry',
+  'Rainy',
+  'Hot',
+  'Cold',
+];
+
+export const TIMES_OF_DAY: TimeOfDay[] = ['Morning', 'Afternoon', 'Evening', 'Night'];
+
+export const SEASONS: Season[] = ['Spring', 'Summer', 'Fall', 'Winter'];
 
 export type EnrichmentAxis = Exclude<ConstraintDimension, 'EnergyFocus'> | 'Type';
 
@@ -144,8 +161,17 @@ export function summarizeAnswer(
   }
 
   if (question.variant === 'weather') {
-    const weatherValue = value as { matters: true; note?: string } | null;
-    return weatherValue?.note && weatherValue.note.length > 0 ? weatherValue.note : 'Matters';
+    const weatherValue = value as WeatherSeasonConstraintValue | null;
+    if (!weatherValue) {
+      return 'Matters';
+    }
+    if (weatherValue.kind === 'Weather') {
+      return weatherValue.conditions.length > 0 ? weatherValue.conditions.join(', ') : 'Matters';
+    }
+    if (weatherValue.kind === 'TimeOfDay') {
+      return weatherValue.times.length > 0 ? weatherValue.times.join(', ') : 'Matters';
+    }
+    return weatherValue.seasons.length > 0 ? weatherValue.seasons.join(', ') : 'Matters';
   }
 
   return null;

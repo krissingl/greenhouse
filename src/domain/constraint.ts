@@ -23,10 +23,16 @@ export type LocationConstraintValue = 'Home' | 'Specific' | 'Anywhere';
 
 export type SocialConstraintValue = 'Solo' | 'NeedsPeople';
 
-export interface WeatherSeasonConstraintValue {
-  matters: true;
-  note?: string;
-}
+export type WeatherCondition = 'Sunny' | 'Overcast' | 'Dry' | 'Rainy' | 'Hot' | 'Cold';
+
+export type TimeOfDay = 'Morning' | 'Afternoon' | 'Evening' | 'Night';
+
+export type Season = 'Spring' | 'Summer' | 'Fall' | 'Winter';
+
+export type WeatherSeasonConstraintValue =
+  | { kind: 'Weather'; conditions: WeatherCondition[] }
+  | { kind: 'TimeOfDay'; times: TimeOfDay[] }
+  | { kind: 'Season'; seasons: Season[] };
 
 export type EnergyFocusConstraintValue = 'Low' | 'Medium' | 'High';
 

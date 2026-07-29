@@ -84,6 +84,48 @@ describe('ConstraintRepository', () => {
     });
   });
 
+  describe('legacy WeatherSeason decode tolerance', () => {
+    it('decodes a pre-#41 { matters, note? } row as Unknown rather than crashing', async () => {
+      const interest = await interestRepository.insert({ title: 'Learn violin' });
+      const now = new Date().toISOString();
+
+      getDatabase().runSync(
+        `INSERT INTO constraints (id, interest_id, dimension, status, value, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?);`,
+        [
+          'legacy-id',
+          interest.id,
+          'WeatherSeason',
+          'Set',
+          JSON.stringify({ matters: true, note: 'This is a fall craft' }),
+          now,
+          now,
+        ],
+      );
+
+      const [stored] = await repository.findForInterest(interest.id);
+      expect(stored.status).toBe('Unknown');
+      expect(stored.value).toBeNull();
+    });
+
+    it('decodes a current { kind, ... } WeatherSeason row unchanged', async () => {
+      const interest = await interestRepository.insert({ title: 'Stargazing' });
+
+      await repository.replaceForInterest(interest.id, [
+        makeConstraint({
+          interestId: interest.id,
+          dimension: 'WeatherSeason',
+          status: 'Set',
+          value: { kind: 'TimeOfDay', times: ['Night'] },
+        }),
+      ]);
+
+      const [stored] = await repository.findForInterest(interest.id);
+      expect(stored.status).toBe('Set');
+      expect(stored.value).toEqual({ kind: 'TimeOfDay', times: ['Night'] });
+    });
+  });
+
   describe('cascade delete', () => {
     it('removes constraint rows when the parent interest is deleted', async () => {
       const interest = await interestRepository.insert({ title: 'Learn violin' });

@@ -292,10 +292,10 @@ describe('EnrichmentCard', () => {
     expect(onForward).not.toHaveBeenCalled();
   });
 
-  it('lets the weather note be typed before advancing (does not auto-navigate on selecting "Yes, it matters")', async () => {
+  it('walks the Weather branch of the decision tree and produces a structured multi-select value', async () => {
     const onAnswer = jest.fn();
     const onForward = jest.fn();
-    const { getByText, getByPlaceholderText } = await render(
+    const { getByText } = await render(
       <ThemeProvider>
         <EnrichmentCard
           axis="WeatherSeason"
@@ -308,16 +308,16 @@ describe('EnrichmentCard', () => {
     );
 
     await act(async () => {
-      fireEvent.press(getByText('Yes, it matters'));
+      fireEvent.press(getByText('Weather'));
     });
 
     expect(onForward).not.toHaveBeenCalled();
 
     await act(async () => {
-      fireEvent.changeText(
-        getByPlaceholderText('What matters — heat, cold, rain, a season? (optional)'),
-        'Too cold below freezing',
-      );
+      fireEvent.press(getByText('Sunny'));
+    });
+    await act(async () => {
+      fireEvent.press(getByText('Overcast'));
     });
 
     expect(onForward).not.toHaveBeenCalled();
@@ -328,12 +328,76 @@ describe('EnrichmentCard', () => {
 
     expect(onAnswer).toHaveBeenCalledWith({
       status: 'Set',
-      value: { matters: true, note: 'Too cold below freezing' },
+      value: { kind: 'Weather', conditions: ['Sunny', 'Overcast'] },
     });
     expect(onForward).toHaveBeenCalled();
   });
 
-  it('renders a real on/off switch for supply items, showing only the active label', async () => {
+  it('offers a due-by field only on the Season and TimeOfDay branches, not on Weather', async () => {
+    const { getByText, queryByPlaceholderText } = await render(
+      <ThemeProvider>
+        <EnrichmentCard
+          axis="WeatherSeason"
+          answer={null}
+          onAnswer={jest.fn()}
+          onBack={jest.fn()}
+          onForward={jest.fn()}
+        />
+      </ThemeProvider>,
+    );
+
+    await act(async () => {
+      fireEvent.press(getByText('Weather'));
+    });
+    expect(queryByPlaceholderText(/Due by/)).toBeNull();
+
+    await act(async () => {
+      fireEvent.press(getByText('Season'));
+    });
+    expect(queryByPlaceholderText(/Due by/)).toBeTruthy();
+  });
+
+  it('captures a due-by date on the Season branch and flushes it via onDueByChange', async () => {
+    const onAnswer = jest.fn();
+    const onDueByChange = jest.fn();
+    const onForward = jest.fn();
+    const { getByText, getByPlaceholderText } = await render(
+      <ThemeProvider>
+        <EnrichmentCard
+          axis="WeatherSeason"
+          answer={null}
+          onAnswer={onAnswer}
+          onBack={jest.fn()}
+          onForward={onForward}
+          dueBy={null}
+          onDueByChange={onDueByChange}
+        />
+      </ThemeProvider>,
+    );
+
+    await act(async () => {
+      fireEvent.press(getByText('Season'));
+    });
+    await act(async () => {
+      fireEvent.press(getByText('Fall'));
+    });
+    await act(async () => {
+      fireEvent.changeText(getByPlaceholderText(/Due by/), '2026-10-31');
+    });
+
+    await act(async () => {
+      fireEvent.press(getByText('Next'));
+    });
+
+    expect(onAnswer).toHaveBeenCalledWith({
+      status: 'Set',
+      value: { kind: 'Season', seasons: ['Fall'] },
+    });
+    expect(onDueByChange).toHaveBeenCalledWith('2026-10-31');
+    expect(onForward).toHaveBeenCalled();
+  });
+
+  it('renders a checkbox per supply item, sorting Need it above Have it and re-sorting on toggle', async () => {
     const { getByText, getAllByPlaceholderText, getByRole } = await render(
       <ThemeProvider>
         <EnrichmentCard
@@ -350,13 +414,37 @@ describe('EnrichmentCard', () => {
     expect(getByText('Need it')).toBeTruthy();
     expect(() => getByText('Have it')).toThrow();
 
-    const toggle = getByRole('switch');
+    const toggle = getByRole('checkbox');
     await act(async () => {
-      fireEvent(toggle, 'valueChange', true);
+      fireEvent.press(toggle);
     });
 
     expect(getByText('Have it')).toBeTruthy();
     expect(() => getByText('Need it')).toThrow();
+  });
+
+  it('keeps a Need it item and a Have it item in their own sections at once', async () => {
+    const { getByText, getAllByRole } = await render(
+      <ThemeProvider>
+        <EnrichmentCard
+          axis="Supplies"
+          answer={{
+            status: 'Set',
+            value: [
+              { name: 'Paint brush', have: false },
+              { name: 'Canvas', have: true },
+            ],
+          }}
+          onAnswer={jest.fn()}
+          onBack={jest.fn()}
+          onForward={jest.fn()}
+        />
+      </ThemeProvider>,
+    );
+
+    expect(getByText('Need it')).toBeTruthy();
+    expect(getByText('Have it')).toBeTruthy();
+    expect(getAllByRole('checkbox')).toHaveLength(2);
   });
 
   it('preserves the "Remove item" accessibility label on the trashcan control', async () => {

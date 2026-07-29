@@ -1,10 +1,24 @@
 import { useEffect, useRef, useState, type ReactElement } from 'react';
-import { Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Animated, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { ActionRow, GroupRow, OptionGroup, OptionRow } from './OptionGroup';
-import type { ConstraintStatus, ConstraintValue, SupplyItem } from '../domain/constraint';
+import { ActionRow, CheckRow, GroupRow, OptionGroup, OptionRow } from './OptionGroup';
+import type {
+  ConstraintStatus,
+  ConstraintValue,
+  Season,
+  SupplyItem,
+  TimeOfDay,
+  WeatherCondition,
+  WeatherSeasonConstraintValue,
+} from '../domain/constraint';
 import type { InterestType } from '../domain/interest';
-import { enrichmentQuestions, type EnrichmentAxis } from '../screens/enrichmentQuestions';
+import {
+  SEASONS,
+  TIMES_OF_DAY,
+  WEATHER_CONDITIONS,
+  enrichmentQuestions,
+  type EnrichmentAxis,
+} from '../screens/enrichmentQuestions';
 import { useTheme } from '../theme';
 
 export interface EnrichmentAnswer {
@@ -18,9 +32,12 @@ interface EnrichmentCardProps {
   onAnswer: (answer: EnrichmentAnswer) => void;
   onBack: () => void;
   onForward: () => void;
+  /** WeatherSeason only — the Interest's current due date, offered as a follow-up on the Season/TimeOfDay branches. */
+  dueBy?: string | null;
+  onDueByChange?: (dueBy: string | null) => void;
 }
 
-type WeatherValue = { matters: true; note?: string };
+type WeatherKind = 'Weather' | 'TimeOfDay' | 'Season';
 
 export default function EnrichmentCard({
   axis,
@@ -28,6 +45,8 @@ export default function EnrichmentCard({
   onAnswer,
   onBack,
   onForward,
+  dueBy,
+  onDueByChange,
 }: EnrichmentCardProps): ReactElement {
   const theme = useTheme();
   const question = enrichmentQuestions[axis];
@@ -36,12 +55,22 @@ export default function EnrichmentCard({
     question.variant === 'supplies' && answer?.status === 'Set' ? (answer.value as SupplyItem[]) : [];
   const initialWeather =
     question.variant === 'weather' && answer?.status === 'Set'
-      ? (answer.value as WeatherValue)
+      ? (answer.value as WeatherSeasonConstraintValue)
       : null;
+  const initialDueBy = dueBy ?? '';
 
   const [items, setItems] = useState<SupplyItem[]>(initialItems);
-  const [weatherMatters, setWeatherMatters] = useState<boolean>(initialWeather !== null);
-  const [weatherNote, setWeatherNote] = useState<string>(initialWeather?.note ?? '');
+  const [weatherKind, setWeatherKind] = useState<WeatherKind | null>(initialWeather?.kind ?? null);
+  const [weatherConditions, setWeatherConditions] = useState<WeatherCondition[]>(
+    initialWeather?.kind === 'Weather' ? initialWeather.conditions : [],
+  );
+  const [weatherTimes, setWeatherTimes] = useState<TimeOfDay[]>(
+    initialWeather?.kind === 'TimeOfDay' ? initialWeather.times : [],
+  );
+  const [weatherSeasons, setWeatherSeasons] = useState<Season[]>(
+    initialWeather?.kind === 'Season' ? initialWeather.seasons : [],
+  );
+  const [dueByDraft, setDueByDraft] = useState<string>(initialDueBy);
 
   // Every exit from this card (Back/Forward, Close, Home, hardware back, or the
   // screen navigating away out from under it) unmounts this component, so an
@@ -49,16 +78,42 @@ export default function EnrichmentCard({
   // draft-holding axes (Supplies/Weather) would otherwise silently lose unsaved
   // edits on any exit path that isn't the explicit Back/Forward handlers.
   const itemsRef = useRef(items);
-  const weatherMattersRef = useRef(weatherMatters);
-  const weatherNoteRef = useRef(weatherNote);
+  const weatherKindRef = useRef(weatherKind);
+  const weatherConditionsRef = useRef(weatherConditions);
+  const weatherTimesRef = useRef(weatherTimes);
+  const weatherSeasonsRef = useRef(weatherSeasons);
+  const dueByDraftRef = useRef(dueByDraft);
   const onAnswerRef = useRef(onAnswer);
+  const onDueByChangeRef = useRef(onDueByChange);
 
   useEffect(() => {
     itemsRef.current = items;
-    weatherMattersRef.current = weatherMatters;
-    weatherNoteRef.current = weatherNote;
+    weatherKindRef.current = weatherKind;
+    weatherConditionsRef.current = weatherConditions;
+    weatherTimesRef.current = weatherTimes;
+    weatherSeasonsRef.current = weatherSeasons;
+    dueByDraftRef.current = dueByDraft;
     onAnswerRef.current = onAnswer;
+    onDueByChangeRef.current = onDueByChange;
   });
+
+  const buildWeatherValue = (
+    kind: WeatherKind | null,
+    conditions: WeatherCondition[],
+    times: TimeOfDay[],
+    seasons: Season[],
+  ): WeatherSeasonConstraintValue | null => {
+    if (kind === 'Weather' && conditions.length > 0) {
+      return { kind: 'Weather', conditions };
+    }
+    if (kind === 'TimeOfDay' && times.length > 0) {
+      return { kind: 'TimeOfDay', times };
+    }
+    if (kind === 'Season' && seasons.length > 0) {
+      return { kind: 'Season', seasons };
+    }
+    return null;
+  };
 
   useEffect(() => {
     return () => {
@@ -67,11 +122,21 @@ export default function EnrichmentCard({
         if (validItems.length > 0) {
           onAnswerRef.current({ status: 'Set', value: validItems });
         }
-      } else if (question.variant === 'weather' && weatherMattersRef.current) {
-        onAnswerRef.current({
-          status: 'Set',
-          value: { matters: true, note: weatherNoteRef.current || undefined },
-        });
+      } else if (question.variant === 'weather') {
+        const value = buildWeatherValue(
+          weatherKindRef.current,
+          weatherConditionsRef.current,
+          weatherTimesRef.current,
+          weatherSeasonsRef.current,
+        );
+        if (value) {
+          onAnswerRef.current({ status: 'Set', value });
+        }
+        if (onDueByChangeRef.current && dueByDraftRef.current !== initialDueBy) {
+          onDueByChangeRef.current(
+            dueByDraftRef.current.trim().length > 0 ? dueByDraftRef.current.trim() : null,
+          );
+        }
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -83,14 +148,17 @@ export default function EnrichmentCard({
     question.variant === 'supplies'
       ? items.some((item) => item.name.trim() !== '')
       : question.variant === 'weather'
-        ? weatherMatters || answer?.status === 'None'
+        ? buildWeatherValue(weatherKind, weatherConditions, weatherTimes, weatherSeasons) !== null ||
+          answer?.status === 'None'
         : answer !== null && answer.status !== 'Unknown';
 
   const handleClear = () => {
     onAnswer({ status: 'Unknown' });
     setItems([]);
-    setWeatherMatters(false);
-    setWeatherNote('');
+    setWeatherKind(null);
+    setWeatherConditions([]);
+    setWeatherTimes([]);
+    setWeatherSeasons([]);
   };
 
   const flushDraft = () => {
@@ -99,8 +167,14 @@ export default function EnrichmentCard({
       if (validItems.length > 0) {
         onAnswer({ status: 'Set', value: validItems });
       }
-    } else if (question.variant === 'weather' && weatherMatters) {
-      onAnswer({ status: 'Set', value: { matters: true, note: weatherNote || undefined } });
+    } else if (question.variant === 'weather') {
+      const value = buildWeatherValue(weatherKind, weatherConditions, weatherTimes, weatherSeasons);
+      if (value) {
+        onAnswer({ status: 'Set', value });
+      }
+      if (onDueByChange && dueByDraft !== initialDueBy) {
+        onDueByChange(dueByDraft.trim().length > 0 ? dueByDraft.trim() : null);
+      }
     }
   };
 
@@ -119,6 +193,9 @@ export default function EnrichmentCard({
     }
     onForward();
   };
+
+  const showDueByField =
+    question.variant === 'weather' && (weatherKind === 'Season' || weatherKind === 'TimeOfDay');
 
   return (
     <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
@@ -146,11 +223,32 @@ export default function EnrichmentCard({
         )}
 
         {question.variant === 'weather' && (
-          <WeatherEditor
-            matters={weatherMatters}
-            note={weatherNote}
-            onToggleMatters={() => setWeatherMatters(true)}
-            onChangeNote={setWeatherNote}
+          <WeatherSeasonEditor
+            kind={weatherKind}
+            conditions={weatherConditions}
+            times={weatherTimes}
+            seasons={weatherSeasons}
+            onSelectKind={(kind) => setWeatherKind(kind)}
+            onToggleCondition={(condition) =>
+              setWeatherConditions((prev) =>
+                prev.includes(condition)
+                  ? prev.filter((c) => c !== condition)
+                  : [...prev, condition],
+              )
+            }
+            onToggleTime={(time) =>
+              setWeatherTimes((prev) =>
+                prev.includes(time) ? prev.filter((t) => t !== time) : [...prev, time],
+              )
+            }
+            onToggleSeason={(season) =>
+              setWeatherSeasons((prev) =>
+                prev.includes(season) ? prev.filter((s) => s !== season) : [...prev, season],
+              )
+            }
+            showDueBy={showDueByField}
+            dueByDraft={dueByDraft}
+            onChangeDueBy={setDueByDraft}
           />
         )}
 
@@ -166,11 +264,7 @@ export default function EnrichmentCard({
         )}
       </View>
 
-      {hasAnswer && (
-        <Pressable onPress={handleClear} style={styles.textButton}>
-          <Text style={{ color: theme.colors.textSecondary }}>Clear answer</Text>
-        </Pressable>
-      )}
+      {hasAnswer && <ClearAnswerButton onPress={handleClear} />}
 
       <View style={styles.navRow}>
         <Pressable
@@ -192,6 +286,33 @@ export default function EnrichmentCard({
   );
 }
 
+function ClearAnswerButton({ onPress }: { onPress: () => void }): ReactElement {
+  const theme = useTheme();
+  const anim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(anim, {
+      toValue: 1,
+      duration: theme.animation.fast,
+      useNativeDriver: true,
+    }).start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <Animated.View
+      style={{
+        opacity: anim,
+        transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [-8, 0] }) }],
+      }}
+    >
+      <Pressable onPress={onPress} style={styles.textButton}>
+        <Text style={{ color: theme.colors.textSecondary }}>Clear answer</Text>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
 function SuppliesEditor({
   items,
   onChangeItems,
@@ -210,95 +331,186 @@ function SuppliesEditor({
     previousLengthRef.current = items.length;
   }, [items.length]);
 
-  return (
-    <OptionGroup>
-      {items.map((item, index) => (
-        <GroupRow key={index} isLast={false}>
-          <TextInput
-            ref={(ref) => {
-              inputRefs.current[index] = ref;
-            }}
-            value={item.name}
-            onChangeText={(name) => {
-              const next = items.slice();
-              next[index] = { ...item, name };
-              onChangeItems(next);
-            }}
-            placeholder="Item name"
-            placeholderTextColor={theme.colors.textTertiary}
-            style={[
-              styles.supplyInput,
-              { color: theme.colors.text, borderColor: theme.colors.border },
-            ]}
-          />
-          <Text style={{ color: theme.colors.textSecondary }}>
-            {item.have ? 'Have it' : 'Need it'}
-          </Text>
-          <Switch
-            value={item.have}
-            onValueChange={(have) => {
-              const next = items.slice();
-              next[index] = { ...item, have };
-              onChangeItems(next);
-            }}
-            trackColor={{ true: theme.colors.primary, false: theme.colors.border }}
-          />
-          <Pressable
-            accessibilityLabel="Remove item"
-            onPress={() => onChangeItems(items.filter((_, i) => i !== index))}
-            hitSlop={8}
-          >
-            <Text style={{ color: theme.colors.error, fontSize: theme.typography.title.size }}>
-              🗑
-            </Text>
-          </Pressable>
-        </GroupRow>
-      ))}
-      <ActionRow
-        label="+ Add item"
-        onPress={() => onChangeItems([...items, { name: '', have: false }])}
-        isLast
+  const indexed = items.map((item, index) => ({ item, index }));
+  const needIt = indexed.filter(({ item }) => !item.have);
+  const haveIt = indexed.filter(({ item }) => item.have);
+
+  const renderRow = (
+    { item, index }: { item: SupplyItem; index: number },
+    isLast: boolean,
+  ): ReactElement => (
+    <GroupRow key={index} isLast={isLast}>
+      <TextInput
+        ref={(ref) => {
+          inputRefs.current[index] = ref;
+        }}
+        value={item.name}
+        onChangeText={(name) => {
+          const next = items.slice();
+          next[index] = { ...item, name };
+          onChangeItems(next);
+        }}
+        placeholder="Item name"
+        placeholderTextColor={theme.colors.textTertiary}
+        style={[
+          styles.supplyInput,
+          { color: theme.colors.text, borderColor: theme.colors.border },
+        ]}
       />
-    </OptionGroup>
+      <Pressable
+        accessibilityRole="checkbox"
+        accessibilityLabel="Have it"
+        accessibilityState={{ checked: item.have }}
+        onPress={() => {
+          const next = items.slice();
+          next[index] = { ...item, have: !item.have };
+          onChangeItems(next);
+        }}
+        style={[
+          styles.supplyCheckbox,
+          {
+            borderColor: item.have ? theme.colors.primary : theme.colors.border,
+            backgroundColor: item.have ? theme.colors.primary : 'transparent',
+          },
+        ]}
+      >
+        {item.have && <Text style={{ color: theme.colors.textOnPrimary, fontSize: 13 }}>✓</Text>}
+      </Pressable>
+      <Pressable
+        accessibilityLabel="Remove item"
+        onPress={() => onChangeItems(items.filter((_, i) => i !== index))}
+        hitSlop={8}
+      >
+        <Text style={{ color: theme.colors.error, fontSize: theme.typography.bodySmall.size }}>
+          ✕
+        </Text>
+      </Pressable>
+    </GroupRow>
+  );
+
+  return (
+    <View style={styles.groupStack}>
+      {needIt.length > 0 && (
+        <View>
+          <Text style={[styles.sectionLabel, { color: theme.colors.textSecondary }]}>Need it</Text>
+          <OptionGroup>
+            {needIt.map((entry, i) => renderRow(entry, i === needIt.length - 1))}
+          </OptionGroup>
+        </View>
+      )}
+      {haveIt.length > 0 && (
+        <View>
+          <Text style={[styles.sectionLabel, { color: theme.colors.textSecondary }]}>Have it</Text>
+          <OptionGroup>
+            {haveIt.map((entry, i) => renderRow(entry, i === haveIt.length - 1))}
+          </OptionGroup>
+        </View>
+      )}
+      <OptionGroup>
+        <ActionRow label="+ Add item" onPress={() => onChangeItems([...items, { name: '', have: false }])} isLast />
+      </OptionGroup>
+    </View>
   );
 }
 
-function WeatherEditor({
-  matters,
-  note,
-  onToggleMatters,
-  onChangeNote,
+function WeatherSeasonEditor({
+  kind,
+  conditions,
+  times,
+  seasons,
+  onSelectKind,
+  onToggleCondition,
+  onToggleTime,
+  onToggleSeason,
+  showDueBy,
+  dueByDraft,
+  onChangeDueBy,
 }: {
-  matters: boolean;
-  note: string;
-  onToggleMatters: () => void;
-  onChangeNote: (note: string) => void;
+  kind: WeatherKind | null;
+  conditions: WeatherCondition[];
+  times: TimeOfDay[];
+  seasons: Season[];
+  onSelectKind: (kind: WeatherKind) => void;
+  onToggleCondition: (condition: WeatherCondition) => void;
+  onToggleTime: (time: TimeOfDay) => void;
+  onToggleSeason: (season: Season) => void;
+  showDueBy: boolean;
+  dueByDraft: string;
+  onChangeDueBy: (text: string) => void;
 }): ReactElement {
   const theme = useTheme();
 
   return (
-    <OptionGroup>
-      <OptionRow
-        label="Yes, it matters"
-        selected={matters}
-        onPress={onToggleMatters}
-        isLast={!matters}
-      />
-      {matters && (
-        <GroupRow isLast>
-          <TextInput
-            value={note}
-            onChangeText={onChangeNote}
-            placeholder="What matters — heat, cold, rain, a season? (optional)"
-            placeholderTextColor={theme.colors.textTertiary}
-            style={[
-              styles.weatherNoteInput,
-              { color: theme.colors.text, borderColor: theme.colors.border },
-            ]}
-          />
-        </GroupRow>
+    <View style={styles.groupStack}>
+      <OptionGroup>
+        <OptionRow label="Weather" selected={kind === 'Weather'} onPress={() => onSelectKind('Weather')} />
+        <OptionRow
+          label="Time of day"
+          selected={kind === 'TimeOfDay'}
+          onPress={() => onSelectKind('TimeOfDay')}
+        />
+        <OptionRow label="Season" selected={kind === 'Season'} onPress={() => onSelectKind('Season')} isLast />
+      </OptionGroup>
+
+      {kind === 'Weather' && (
+        <OptionGroup>
+          {WEATHER_CONDITIONS.map((condition, index) => (
+            <CheckRow
+              key={condition}
+              label={condition}
+              checked={conditions.includes(condition)}
+              onToggle={() => onToggleCondition(condition)}
+              isLast={index === WEATHER_CONDITIONS.length - 1}
+            />
+          ))}
+        </OptionGroup>
       )}
-    </OptionGroup>
+
+      {kind === 'TimeOfDay' && (
+        <OptionGroup>
+          {TIMES_OF_DAY.map((time, index) => (
+            <CheckRow
+              key={time}
+              label={time}
+              checked={times.includes(time)}
+              onToggle={() => onToggleTime(time)}
+              isLast={index === TIMES_OF_DAY.length - 1}
+            />
+          ))}
+        </OptionGroup>
+      )}
+
+      {kind === 'Season' && (
+        <OptionGroup>
+          {SEASONS.map((season, index) => (
+            <CheckRow
+              key={season}
+              label={season}
+              checked={seasons.includes(season)}
+              onToggle={() => onToggleSeason(season)}
+              isLast={index === SEASONS.length - 1}
+            />
+          ))}
+        </OptionGroup>
+      )}
+
+      {showDueBy && (
+        <OptionGroup>
+          <GroupRow isLast>
+            <TextInput
+              value={dueByDraft}
+              onChangeText={onChangeDueBy}
+              placeholder="Due by — optional (e.g. 2026-10-31)"
+              placeholderTextColor={theme.colors.textTertiary}
+              style={[
+                styles.dueByInput,
+                { color: theme.colors.text, borderColor: theme.colors.border },
+              ]}
+            />
+          </GroupRow>
+        </OptionGroup>
+      )}
+    </View>
   );
 }
 
@@ -328,6 +540,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     paddingVertical: 8,
   },
+  sectionLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    marginBottom: 6,
+  },
   supplyInput: {
     flex: 1,
     borderWidth: 1,
@@ -335,8 +553,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
-  weatherNoteInput: {
-    alignSelf: 'stretch',
+  supplyCheckbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 5,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dueByInput: {
+    flex: 1,
     minHeight: 44,
     borderWidth: 1,
     borderRadius: 8,

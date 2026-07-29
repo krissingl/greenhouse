@@ -131,6 +131,16 @@ export default function GuidedSetupScreen({ route, navigation }: Props): ReactEl
     }
   };
 
+  const handleDueByChange = async (dueBy: string | null) => {
+    try {
+      setActionError(null);
+      const updated = await interestService.update(interestId, { dueBy });
+      setInterest(updated);
+    } catch {
+      setActionError('Could not save the due date. Please try again.');
+    }
+  };
+
   const handleBack = () => {
     if (effectiveIndex === null || effectiveIndex < 0) {
       return;
@@ -209,6 +219,8 @@ export default function GuidedSetupScreen({ route, navigation }: Props): ReactEl
           onAnswer={(answer) => handleAnswer(axisToRender, answer)}
           onBack={handleBack}
           onForward={handleForward}
+          dueBy={interest.dueBy}
+          onDueByChange={handleDueByChange}
         />
       )}
     </View>

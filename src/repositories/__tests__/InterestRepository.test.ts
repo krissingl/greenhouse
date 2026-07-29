@@ -40,6 +40,11 @@ describe('InterestRepository', () => {
       const interest = await repository.insert({ title: 'Learn violin' });
       expect(interest.typeSkippedAt).toBeNull();
     });
+
+    it('defaults dueBy to null', async () => {
+      const interest = await repository.insert({ title: 'Learn violin' });
+      expect(interest.dueBy).toBeNull();
+    });
   });
 
   describe('findById', () => {
@@ -153,6 +158,17 @@ describe('InterestRepository', () => {
 
       const refetched = await repository.findById(created.id);
       expect(refetched?.typeSkippedAt).toBe(skippedAt);
+    });
+
+    it('round-trips dueBy', async () => {
+      const created = await repository.insert({ title: 'Learn violin' });
+      const dueBy = '2026-10-31T00:00:00.000Z';
+
+      const updated = await repository.update(created.id, { dueBy });
+      expect(updated.dueBy).toBe(dueBy);
+
+      const refetched = await repository.findById(created.id);
+      expect(refetched?.dueBy).toBe(dueBy);
     });
   });
 

@@ -10,6 +10,7 @@ function makeInterest(overrides: Partial<Interest> = {}): Interest {
     state: 'Backlog',
     archivedAt: null,
     typeSkippedAt: null,
+    dueBy: null,
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
     ...overrides,

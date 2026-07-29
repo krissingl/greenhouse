@@ -11,6 +11,7 @@ export interface Interest {
   state: InterestState;
   archivedAt: string | null;
   typeSkippedAt: string | null;
+  dueBy: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -30,7 +31,7 @@ export interface InterestFilter {
 }
 
 export type InterestPatch = Partial<
-  Pick<Interest, 'title' | 'type' | 'state' | 'archivedAt' | 'typeSkippedAt'>
+  Pick<Interest, 'title' | 'type' | 'state' | 'archivedAt' | 'typeSkippedAt' | 'dueBy'>
 >;
 
 const DISPLAY_LABELS: Record<InterestType | InterestState, string> = {

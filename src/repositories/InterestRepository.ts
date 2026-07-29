@@ -17,6 +17,7 @@ interface InterestRow {
   state: string;
   archived_at: string | null;
   type_skipped_at: string | null;
+  due_by: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -29,6 +30,7 @@ function rowToInterest(row: InterestRow): Interest {
     state: row.state as InterestState,
     archivedAt: row.archived_at,
     typeSkippedAt: row.type_skipped_at,
+    dueBy: row.due_by,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -42,9 +44,9 @@ export class InterestRepository extends BaseRepository {
       const type = newInterest.type ?? null;
 
       db.runSync(
-        `INSERT INTO interests (id, title, type, state, archived_at, type_skipped_at, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
-        [id, newInterest.title, type, 'Backlog', null, null, now, now],
+        `INSERT INTO interests (id, title, type, state, archived_at, type_skipped_at, due_by, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+        [id, newInterest.title, type, 'Backlog', null, null, null, now, now],
       );
 
       return {
@@ -54,6 +56,7 @@ export class InterestRepository extends BaseRepository {
         state: 'Backlog',
         archivedAt: null,
         typeSkippedAt: null,
+        dueBy: null,
         createdAt: now,
         updatedAt: now,
       };
@@ -123,7 +126,7 @@ export class InterestRepository extends BaseRepository {
 
       db.runSync(
         `UPDATE interests
-         SET title = ?, type = ?, state = ?, archived_at = ?, type_skipped_at = ?, updated_at = ?
+         SET title = ?, type = ?, state = ?, archived_at = ?, type_skipped_at = ?, due_by = ?, updated_at = ?
          WHERE id = ?;`,
         [
           updated.title,
@@ -131,6 +134,7 @@ export class InterestRepository extends BaseRepository {
           updated.state,
           updated.archivedAt,
           updated.typeSkippedAt,
+          updated.dueBy,
           updated.updatedAt,
           updated.id,
         ],

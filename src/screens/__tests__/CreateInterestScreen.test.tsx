@@ -51,6 +51,7 @@ describe('CreateInterestScreen', () => {
       state: 'Backlog',
       archivedAt: null,
       typeSkippedAt: null,
+      dueBy: null,
       createdAt: '2026-07-01T00:00:00.000Z',
       updatedAt: '2026-07-01T00:00:00.000Z',
     });

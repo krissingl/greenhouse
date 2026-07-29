@@ -71,6 +71,39 @@ export function OptionRow({
   );
 }
 
+interface CheckRowProps {
+  label: string;
+  checked: boolean;
+  onToggle: () => void;
+  isLast?: boolean;
+}
+
+export function CheckRow({ label, checked, onToggle, isLast = false }: CheckRowProps): ReactElement {
+  const theme = useTheme();
+
+  return (
+    <Pressable
+      onPress={onToggle}
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked }}
+      style={[styles.row, rowBorderStyle(theme, isLast)]}
+    >
+      <Text style={[styles.rowLabel, { color: theme.colors.text }]}>{label}</Text>
+      <View
+        style={[
+          styles.checkboxOuter,
+          {
+            borderColor: checked ? theme.colors.primary : theme.colors.border,
+            backgroundColor: checked ? theme.colors.primary : 'transparent',
+          },
+        ]}
+      >
+        {checked && <Text style={{ color: theme.colors.textOnPrimary, fontSize: 13 }}>✓</Text>}
+      </View>
+    </Pressable>
+  );
+}
+
 interface NavigationRowProps {
   label: string;
   emphasis?: boolean;
@@ -158,5 +191,13 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
+  },
+  checkboxOuter: {
+    width: 20,
+    height: 20,
+    borderRadius: 5,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

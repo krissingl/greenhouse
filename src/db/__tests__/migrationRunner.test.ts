@@ -34,7 +34,7 @@ describe('runMigrations', () => {
     const rows = db.getAllSync<{ id: number; name: string }>(
       'SELECT id, name FROM schema_migrations ORDER BY id;',
     );
-    expect(rows).toHaveLength(4);
+    expect(rows.length).toBeGreaterThanOrEqual(4);
     expect(rows[2]).toMatchObject({ id: 3, name: 'create_constraints' });
     expect(rows[3]).toMatchObject({ id: 4, name: 'add_type_skipped_at_to_interests' });
 
@@ -56,6 +56,26 @@ describe('runMigrations', () => {
     }).not.toThrow();
 
     const rows = db.getAllSync<{ id: number }>('SELECT id FROM schema_migrations;');
-    expect(rows).toHaveLength(4);
+    expect(rows).toHaveLength(6);
+  });
+
+  it('applies migrations 005 and 006 cleanly, adding due_by and creating notes', () => {
+    const db = getDatabase();
+    runMigrations(db);
+
+    const rows = db.getAllSync<{ id: number; name: string }>(
+      'SELECT id, name FROM schema_migrations ORDER BY id;',
+    );
+    expect(rows).toHaveLength(6);
+    expect(rows[4]).toMatchObject({ id: 5, name: 'add_due_by_to_interests' });
+    expect(rows[5]).toMatchObject({ id: 6, name: 'create_notes' });
+
+    const columns = db.getAllSync<{ name: string }>('PRAGMA table_info(interests);');
+    expect(columns.some((column) => column.name === 'due_by')).toBe(true);
+
+    const notesTableRow = db.getFirstSync<{ name: string }>(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'notes';",
+    );
+    expect(notesTableRow).not.toBeNull();
   });
 });
