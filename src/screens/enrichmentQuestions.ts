@@ -4,7 +4,7 @@ import type {
   ConstraintValue,
   SupplyItem,
 } from '../domain/constraint';
-import type { InterestType } from '../domain/interest';
+import { displayLabel, type InterestType } from '../domain/interest';
 
 export type EnrichmentAxis = Exclude<ConstraintDimension, 'EnergyFocus'> | 'Type';
 
@@ -62,9 +62,9 @@ export const enrichmentQuestions: Record<EnrichmentAxis, QuestionConfig> = {
     shortLabel: 'type',
     prompt: 'What kind of interest is this?',
     options: [
-      { label: 'One-time project', value: 'OneTimeProject' },
-      { label: 'Structured learning', value: 'StructuredLearning' },
-      { label: 'Unstructured learning', value: 'UnstructuredLearning' },
+      { label: displayLabel('OneTimeProject'), value: 'OneTimeProject' },
+      { label: displayLabel('StructuredLearning'), value: 'StructuredLearning' },
+      { label: displayLabel('UnstructuredLearning'), value: 'UnstructuredLearning' },
     ],
   },
   Time: {

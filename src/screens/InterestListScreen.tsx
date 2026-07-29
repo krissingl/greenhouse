@@ -5,7 +5,7 @@ import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-na
 
 import InterestListItem from '../components/InterestListItem';
 import type { ConstraintDimension } from '../domain/constraint';
-import type { Interest, InterestFilter, InterestId } from '../domain/interest';
+import { displayLabel, type Interest, type InterestFilter, type InterestId, type InterestState } from '../domain/interest';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { COVERED_AXES, type EnrichmentAxis } from './enrichmentQuestions';
 import { constraintService } from '../services/ConstraintService';
@@ -27,6 +27,13 @@ const STATE_FILTER_OPTIONS: StateFilterOption[] = [
   'Complete',
   'Archived',
 ];
+
+function stateFilterLabel(option: StateFilterOption): string {
+  if (option === 'All' || option === 'Archived') {
+    return option;
+  }
+  return displayLabel(option as InterestState);
+}
 
 const SEARCH_DEBOUNCE_MS = 300;
 
@@ -142,7 +149,7 @@ export default function InterestListScreen({ navigation }: Props): ReactElement 
                 fontSize: theme.typography.caption.size,
               }}
             >
-              {option}
+              {stateFilterLabel(option)}
             </Text>
           </Pressable>
         ))}

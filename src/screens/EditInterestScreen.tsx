@@ -2,7 +2,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useEffect, useState, type ReactElement } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { validateTitle, type InterestState } from '../domain/interest';
+import { displayLabel, validateTitle, type InterestState } from '../domain/interest';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { interestService } from '../services/InterestService';
 import { useTheme } from '../theme';
@@ -112,7 +112,7 @@ export default function EditInterestScreen({ route, navigation }: Props): ReactE
             ]}
           >
             <Text style={{ color: state === option ? theme.colors.textOnPrimary : theme.colors.text }}>
-              {option}
+              {displayLabel(option)}
             </Text>
           </Pressable>
         ))}

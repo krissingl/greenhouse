@@ -32,6 +32,19 @@ export type InterestPatch = Partial<
   Pick<Interest, 'title' | 'type' | 'state' | 'archivedAt' | 'typeSkippedAt'>
 >;
 
+const DISPLAY_LABELS: Record<InterestType | InterestState, string> = {
+  OneTimeProject: 'One-time project',
+  StructuredLearning: 'Structured learning',
+  UnstructuredLearning: 'Unstructured learning',
+  Backlog: 'Backlog',
+  InProgress: 'In progress',
+  Complete: 'Complete',
+};
+
+export function displayLabel(value: InterestType | InterestState): string {
+  return DISPLAY_LABELS[value];
+}
+
 export function validateTitle(title: string): boolean {
   return title.trim().length > 0;
 }

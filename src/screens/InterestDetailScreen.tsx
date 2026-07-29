@@ -5,7 +5,7 @@ import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { NavigationRow, OptionGroup } from '../components/OptionGroup';
 import type { Constraint } from '../domain/constraint';
-import type { Interest } from '../domain/interest';
+import { displayLabel, type Interest } from '../domain/interest';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { describeCapability } from './describeCapability';
 import {
@@ -175,10 +175,10 @@ export default function InterestDetailScreen({ route, navigation }: Props): Reac
         {interest.title}
       </Text>
       <Text style={{ color: theme.colors.textSecondary, marginTop: theme.spacing.sm }}>
-        State: {interest.state}
+        State: {displayLabel(interest.state)}
       </Text>
       <Text style={{ color: theme.colors.textSecondary, marginTop: theme.spacing.xs }}>
-        Type: {interest.type ?? 'not set'}
+        Type: {interest.type ? displayLabel(interest.type) : 'not set'}
       </Text>
       <Text style={{ color: theme.colors.textTertiary, marginTop: theme.spacing.sm }}>
         Created: {formatDisplayDate(interest.createdAt)}
