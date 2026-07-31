@@ -3,7 +3,6 @@ import { act, fireEvent, render } from '@testing-library/react-native';
 import type { ReactElement } from 'react';
 
 import type { Interest } from '../../domain/interest';
-import { constraintService } from '../../services/ConstraintService';
 import { interestService } from '../../services/InterestService';
 import { ThemeProvider } from '../../theme';
 import InterestListScreen from '../InterestListScreen';
@@ -58,7 +57,6 @@ describe('InterestListScreen', () => {
 
   it('defaults the state filter to In progress and the type filter to All', async () => {
     const listSpy = jest.spyOn(interestService, 'list').mockResolvedValueOnce([]);
-    jest.spyOn(constraintService, 'needsEnrichment').mockResolvedValueOnce(new Set());
     const navigation = { navigate: jest.fn() };
 
     const { findByText } = await renderScreen(navigation);
@@ -70,7 +68,6 @@ describe('InterestListScreen', () => {
 
   it('keeps the active filter summary visible while collapsed, and expands controls on tap', async () => {
     jest.spyOn(interestService, 'list').mockResolvedValue([]);
-    jest.spyOn(constraintService, 'needsEnrichment').mockResolvedValue(new Set());
     const navigation = { navigate: jest.fn() };
 
     const { findByText, queryByText } = await renderScreen(navigation);
@@ -86,84 +83,25 @@ describe('InterestListScreen', () => {
     expect(await findByText('Archived')).toBeTruthy();
   });
 
-  it('shows the nudge banner when an interest needs enrichment', async () => {
+  it('renders no enrichment nudge banner', async () => {
     jest
       .spyOn(interestService, 'list')
       .mockResolvedValueOnce([
         makeInterest({ id: 'interest-1', type: 'OneTimeProject', typeSkippedAt: null }),
       ]);
-    jest.spyOn(constraintService, 'needsEnrichment').mockResolvedValueOnce(new Set(['interest-1']));
-    const navigation = { navigate: jest.fn() };
-
-    const { findByText } = await renderScreen(navigation);
-
-    expect(await findByText('Got a minute? 1 seeds could tell me more')).toBeTruthy();
-  });
-
-  it('hides the banner when nothing needs enrichment', async () => {
-    jest
-      .spyOn(interestService, 'list')
-      .mockResolvedValueOnce([
-        makeInterest({ id: 'interest-1', type: 'OneTimeProject', typeSkippedAt: null }),
-      ]);
-    jest.spyOn(constraintService, 'needsEnrichment').mockResolvedValueOnce(new Set());
     const navigation = { navigate: jest.fn() };
 
     const { queryByText, findByText } = await renderScreen(navigation);
 
     await findByText('Learn violin');
     expect(queryByText(/Got a minute/)).toBeNull();
-  });
-
-  it('dismisses the banner and does not re-show it', async () => {
-    jest
-      .spyOn(interestService, 'list')
-      .mockResolvedValueOnce([
-        makeInterest({ id: 'interest-1', type: 'OneTimeProject', typeSkippedAt: null }),
-      ]);
-    jest.spyOn(constraintService, 'needsEnrichment').mockResolvedValueOnce(new Set(['interest-1']));
-    const navigation = { navigate: jest.fn() };
-
-    const { findByText, queryByText } = await renderScreen(navigation);
-
-    await findByText('Got a minute? 1 seeds could tell me more');
-
-    await act(async () => {
-      fireEvent.press(await findByText('✕'));
-    });
-
-    expect(queryByText(/Got a minute/)).toBeNull();
-  });
-
-  it('makes exactly one needsEnrichment call regardless of list size', async () => {
-    jest
-      .spyOn(interestService, 'list')
-      .mockResolvedValueOnce([
-        makeInterest({ id: 'interest-1', title: 'Learn violin', type: 'OneTimeProject' }),
-        makeInterest({ id: 'interest-2', title: 'Bake bread', type: 'OneTimeProject' }),
-        makeInterest({ id: 'interest-3', title: 'Build shelves', type: 'OneTimeProject' }),
-      ]);
-    const needsEnrichmentSpy = jest
-      .spyOn(constraintService, 'needsEnrichment')
-      .mockResolvedValueOnce(new Set());
-    const navigation = { navigate: jest.fn() };
-
-    const { findByText } = await renderScreen(navigation);
-
-    await findByText('Build shelves');
-
-    expect(needsEnrichmentSpy).toHaveBeenCalledTimes(1);
-    expect(needsEnrichmentSpy).toHaveBeenCalledWith(
-      ['interest-1', 'interest-2', 'interest-3'],
-      ['Time', 'Supplies', 'Location', 'Social', 'WeatherSeason'],
-    );
+    expect(queryByText(/could tell me more/)).toBeNull();
   });
 
   it('shows a Start button on Backlog rows and updates the row in place with no navigation', async () => {
     jest
       .spyOn(interestService, 'list')
       .mockResolvedValue([makeInterest({ id: 'interest-1', state: 'Backlog' })]);
-    jest.spyOn(constraintService, 'needsEnrichment').mockResolvedValue(new Set());
     jest
       .spyOn(interestService, 'setState')
       .mockResolvedValueOnce(makeInterest({ id: 'interest-1', state: 'InProgress' }));
@@ -185,7 +123,6 @@ describe('InterestListScreen', () => {
     jest
       .spyOn(interestService, 'list')
       .mockResolvedValueOnce([makeInterest({ id: 'interest-1', state: 'InProgress' })]);
-    jest.spyOn(constraintService, 'needsEnrichment').mockResolvedValueOnce(new Set());
     const navigation = { navigate: jest.fn() };
 
     const { findByText, queryByText } = await renderScreen(navigation);
@@ -198,7 +135,6 @@ describe('InterestListScreen', () => {
     jest
       .spyOn(interestService, 'list')
       .mockResolvedValue([makeInterest({ id: 'interest-1', state: 'Backlog' })]);
-    jest.spyOn(constraintService, 'needsEnrichment').mockResolvedValue(new Set());
     jest
       .spyOn(interestService, 'setState')
       .mockResolvedValueOnce(makeInterest({ id: 'interest-1', state: 'InProgress' }));
@@ -224,7 +160,6 @@ describe('InterestListScreen', () => {
 
   it('requests archived-only interests when the Archived filter is selected', async () => {
     const listSpy = jest.spyOn(interestService, 'list').mockResolvedValue([]);
-    jest.spyOn(constraintService, 'needsEnrichment').mockResolvedValue(new Set());
     const navigation = { navigate: jest.fn() };
 
     const { findByText } = await renderScreen(navigation);
@@ -249,7 +184,6 @@ describe('InterestListScreen', () => {
       makeInterest({ id: 'interest-2', title: 'Learn violin', type: 'StructuredLearning' }),
       makeInterest({ id: 'interest-3', title: 'Bake bread', type: null }),
     ]);
-    jest.spyOn(constraintService, 'needsEnrichment').mockResolvedValueOnce(new Set());
     const navigation = { navigate: jest.fn() };
 
     const { findByText } = await renderScreen(navigation);
@@ -268,7 +202,6 @@ describe('InterestListScreen', () => {
       .mockResolvedValueOnce([
         makeInterest({ id: 'interest-1', title: 'Build shelves', type: 'OneTimeProject' }),
       ]);
-    jest.spyOn(constraintService, 'needsEnrichment').mockResolvedValueOnce(new Set());
     const navigation = { navigate: jest.fn() };
 
     const { findByText, queryByText } = await renderScreen(navigation);
@@ -280,7 +213,6 @@ describe('InterestListScreen', () => {
 
   it('requests a type filter when a type chip is selected', async () => {
     const listSpy = jest.spyOn(interestService, 'list').mockResolvedValue([]);
-    jest.spyOn(constraintService, 'needsEnrichment').mockResolvedValue(new Set());
     const navigation = { navigate: jest.fn() };
 
     const { findByText } = await renderScreen(navigation);

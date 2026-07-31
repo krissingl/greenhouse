@@ -7,7 +7,7 @@ import type { Interest } from '../../domain/interest';
 import { constraintService } from '../../services/ConstraintService';
 import { interestService } from '../../services/InterestService';
 import { ThemeProvider } from '../../theme';
-import InterestDetailScreen, { __resetCapabilityTipDismissedForTests } from '../InterestDetailScreen';
+import InterestDetailScreen from '../InterestDetailScreen';
 
 const DIMENSIONS: ConstraintDimension[] = [
   'Time',
@@ -55,6 +55,10 @@ function makeFullyAnsweredConstraints(): Constraint[] {
   });
 }
 
+function makeNavigation(): { navigate: jest.Mock; setOptions: jest.Mock } {
+  return { navigate: jest.fn(), setOptions: jest.fn() };
+}
+
 async function renderScreen(navigation: {
   navigate: jest.Mock;
 }): Promise<ReturnType<typeof render>> {
@@ -75,17 +79,13 @@ async function renderScreen(navigation: {
 }
 
 describe('InterestDetailScreen', () => {
-  beforeEach(() => {
-    __resetCapabilityTipDismissedForTests();
-  });
-
   it('shows the Start button for a Backlog interest and transitions it to InProgress in place', async () => {
     jest.spyOn(interestService, 'get').mockResolvedValueOnce(INTEREST);
     jest.spyOn(constraintService, 'listForInterest').mockResolvedValueOnce(makeConstraints());
     jest
       .spyOn(interestService, 'setState')
       .mockResolvedValueOnce({ ...INTEREST, state: 'InProgress' });
-    const navigation = { navigate: jest.fn() };
+    const navigation = makeNavigation();
 
     const { findByText, queryByText } = await renderScreen(navigation);
 
@@ -104,7 +104,7 @@ describe('InterestDetailScreen', () => {
       .spyOn(interestService, 'get')
       .mockResolvedValueOnce({ ...INTEREST, state: 'InProgress' });
     jest.spyOn(constraintService, 'listForInterest').mockResolvedValueOnce(makeConstraints());
-    const navigation = { navigate: jest.fn() };
+    const navigation = makeNavigation();
 
     const { findByText, queryByText } = await renderScreen(navigation);
 
@@ -116,7 +116,7 @@ describe('InterestDetailScreen', () => {
     jest.spyOn(interestService, 'get').mockResolvedValueOnce(INTEREST);
     jest.spyOn(constraintService, 'listForInterest').mockResolvedValueOnce(makeConstraints());
     jest.spyOn(interestService, 'setState').mockRejectedValueOnce(new Error('boom'));
-    const navigation = { navigate: jest.fn() };
+    const navigation = makeNavigation();
 
     const { findByText } = await renderScreen(navigation);
 
@@ -131,7 +131,7 @@ describe('InterestDetailScreen', () => {
   it('does not render a native page title, Archive, or Delete on Interest Detail', async () => {
     jest.spyOn(interestService, 'get').mockResolvedValueOnce(INTEREST);
     jest.spyOn(constraintService, 'listForInterest').mockResolvedValueOnce(makeConstraints());
-    const navigation = { navigate: jest.fn() };
+    const navigation = makeNavigation();
 
     const { findByText, queryByText } = await renderScreen(navigation);
 
@@ -144,7 +144,7 @@ describe('InterestDetailScreen', () => {
   it('shows inline feedback when loading the interest fails', async () => {
     jest.spyOn(interestService, 'get').mockRejectedValueOnce(new Error('boom'));
     jest.spyOn(constraintService, 'listForInterest').mockResolvedValueOnce(makeConstraints());
-    const navigation = { navigate: jest.fn() };
+    const navigation = makeNavigation();
 
     const { findByText } = await renderScreen(navigation);
 
@@ -154,7 +154,7 @@ describe('InterestDetailScreen', () => {
   it('shows inline feedback when loading constraints fails', async () => {
     jest.spyOn(interestService, 'get').mockResolvedValueOnce(INTEREST);
     jest.spyOn(constraintService, 'listForInterest').mockRejectedValueOnce(new Error('boom'));
-    const navigation = { navigate: jest.fn() };
+    const navigation = makeNavigation();
 
     const { findByText } = await renderScreen(navigation);
 
@@ -164,7 +164,7 @@ describe('InterestDetailScreen', () => {
   it('renders a labelled row for a never-touched axis, reading "Not set"', async () => {
     jest.spyOn(interestService, 'get').mockResolvedValueOnce(INTEREST);
     jest.spyOn(constraintService, 'listForInterest').mockResolvedValueOnce(makeConstraints());
-    const navigation = { navigate: jest.fn() };
+    const navigation = makeNavigation();
 
     const { findByText } = await renderScreen(navigation);
 
@@ -177,7 +177,7 @@ describe('InterestDetailScreen', () => {
     jest
       .spyOn(constraintService, 'listForInterest')
       .mockResolvedValueOnce(makeConstraints({ Time: { status: 'Set', value: '15-30' } }));
-    const navigation = { navigate: jest.fn() };
+    const navigation = makeNavigation();
 
     const { findByText } = await renderScreen(navigation);
 
@@ -189,7 +189,7 @@ describe('InterestDetailScreen', () => {
     jest
       .spyOn(constraintService, 'listForInterest')
       .mockResolvedValueOnce(makeConstraints({ Location: { status: 'None' } }));
-    const navigation = { navigate: jest.fn() };
+    const navigation = makeNavigation();
 
     const { findByText } = await renderScreen(navigation);
 
@@ -201,7 +201,7 @@ describe('InterestDetailScreen', () => {
       .spyOn(interestService, 'get')
       .mockResolvedValueOnce({ ...INTEREST, typeSkippedAt: '2026-07-02T00:00:00.000Z' });
     jest.spyOn(constraintService, 'listForInterest').mockResolvedValueOnce(makeConstraints());
-    const navigation = { navigate: jest.fn() };
+    const navigation = makeNavigation();
 
     const { findByText, queryByText } = await renderScreen(navigation);
 
@@ -212,7 +212,7 @@ describe('InterestDetailScreen', () => {
   it('navigates to GuidedSetupScreen with the tapped row axis as startDimension via the edit icon', async () => {
     jest.spyOn(interestService, 'get').mockResolvedValueOnce(INTEREST);
     jest.spyOn(constraintService, 'listForInterest').mockResolvedValueOnce(makeConstraints());
-    const navigation = { navigate: jest.fn() };
+    const navigation = makeNavigation();
 
     const { findByLabelText } = await renderScreen(navigation);
 
@@ -227,7 +227,7 @@ describe('InterestDetailScreen', () => {
   it('shows "＋ Tell me more" when an axis is unanswered and hides it once all axes are answered', async () => {
     jest.spyOn(interestService, 'get').mockResolvedValueOnce(INTEREST);
     jest.spyOn(constraintService, 'listForInterest').mockResolvedValueOnce(makeConstraints());
-    const navigation = { navigate: jest.fn() };
+    const navigation = makeNavigation();
 
     const { findByText } = await renderScreen(navigation);
     expect(await findByText('＋ Tell me more')).toBeTruthy();
@@ -240,7 +240,7 @@ describe('InterestDetailScreen', () => {
     jest
       .spyOn(constraintService, 'listForInterest')
       .mockResolvedValueOnce(makeFullyAnsweredConstraints());
-    const navigation = { navigate: jest.fn() };
+    const navigation = makeNavigation();
 
     const { findByText, queryByText } = await renderScreen(navigation);
     await findByText('Learn violin');
@@ -251,7 +251,7 @@ describe('InterestDetailScreen', () => {
   it('navigates to GuidedSetupScreen with no startDimension from "＋ Tell me more"', async () => {
     jest.spyOn(interestService, 'get').mockResolvedValueOnce(INTEREST);
     jest.spyOn(constraintService, 'listForInterest').mockResolvedValueOnce(makeConstraints());
-    const navigation = { navigate: jest.fn() };
+    const navigation = makeNavigation();
 
     const { findByText } = await renderScreen(navigation);
 
@@ -275,7 +275,7 @@ describe('InterestDetailScreen', () => {
         },
       }),
     );
-    const navigation = { navigate: jest.fn() };
+    const navigation = makeNavigation();
 
     const { findByText, queryByText } = await renderScreen(navigation);
 
@@ -293,7 +293,7 @@ describe('InterestDetailScreen', () => {
   it('navigates to Edit via the title-row edit icon', async () => {
     jest.spyOn(interestService, 'get').mockResolvedValueOnce(INTEREST);
     jest.spyOn(constraintService, 'listForInterest').mockResolvedValueOnce(makeConstraints());
-    const navigation = { navigate: jest.fn() };
+    const navigation = makeNavigation();
 
     const { findByLabelText } = await renderScreen(navigation);
 
@@ -305,7 +305,7 @@ describe('InterestDetailScreen', () => {
   it('navigates to the journal via the notepad icon', async () => {
     jest.spyOn(interestService, 'get').mockResolvedValueOnce(INTEREST);
     jest.spyOn(constraintService, 'listForInterest').mockResolvedValueOnce(makeConstraints());
-    const navigation = { navigate: jest.fn() };
+    const navigation = makeNavigation();
 
     const { findByLabelText } = await renderScreen(navigation);
 
@@ -314,23 +314,42 @@ describe('InterestDetailScreen', () => {
     expect(navigation.navigate).toHaveBeenCalledWith('NoteJournal', { interestId: 'interest-1' });
   });
 
-  it('dismisses the capability tip for the remainder of the session, not just this render', async () => {
+  it('renders no capability microcopy card', async () => {
     jest.spyOn(interestService, 'get').mockResolvedValue(INTEREST);
     jest.spyOn(constraintService, 'listForInterest').mockResolvedValue(makeConstraints());
-    const navigation = { navigate: jest.fn() };
+    const navigation = makeNavigation();
 
-    const { findByLabelText, queryByLabelText, unmount } = await renderScreen(navigation);
-    await act(async () => {
-      fireEvent.press(await findByLabelText('Dismiss tip'));
-    });
+    const { findByText, queryByLabelText, queryByText } = await renderScreen(navigation);
+    await findByText('Learn violin');
+
     expect(queryByLabelText('Dismiss tip')).toBeNull();
+    expect(queryByText(/I can suggest this/)).toBeNull();
+    expect(queryByText(/I can only find this/)).toBeNull();
+    expect(queryByText(/I know a little about this/)).toBeNull();
+  });
 
-    await act(async () => {
-      unmount();
-    });
+  it('puts the state icon in the header title slot and keeps the state label in the body', async () => {
+    jest
+      .spyOn(interestService, 'get')
+      .mockResolvedValueOnce({ ...INTEREST, state: 'InProgress' });
+    jest.spyOn(constraintService, 'listForInterest').mockResolvedValueOnce(makeConstraints());
+    const navigation = makeNavigation();
 
-    const second = await renderScreen(navigation);
-    await second.findByText('Learn violin');
-    expect(second.queryByLabelText('Dismiss tip')).toBeNull();
+    const { findByText, queryByLabelText } = await renderScreen(navigation);
+    await findByText('Learn violin');
+
+    expect(queryByLabelText('State: In progress')).toBeNull();
+    expect(await findByText('In progress')).toBeTruthy();
+
+    const headerTitle = navigation.setOptions.mock.calls
+      .map(([options]) => (options as { headerTitle?: () => ReactElement }).headerTitle)
+      .filter((title): title is () => ReactElement => title !== undefined)
+      .at(-1);
+    expect(headerTitle).toBeDefined();
+
+    const header = await render(
+      (<ThemeProvider>{headerTitle!()}</ThemeProvider>) as ReactElement,
+    );
+    expect(header.getByLabelText('State: In progress')).toBeTruthy();
   });
 });

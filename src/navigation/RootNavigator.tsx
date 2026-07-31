@@ -2,7 +2,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { ReactElement } from 'react';
 
-import HeaderLeftControls from './HeaderLeftControls';
+import { headerLeftOptions, sharedHeaderOptions } from './headerOptions';
 import CreateInterestScreen from '../screens/CreateInterestScreen';
 import EditInterestScreen from '../screens/EditInterestScreen';
 import type { EnrichmentAxis } from '../screens/enrichmentQuestions';
@@ -25,7 +25,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 export default function RootNavigator(): ReactElement {
   return (
     <NavigationContainer>
-      <Stack.Navigator initialRouteName="InterestList">
+      <Stack.Navigator initialRouteName="InterestList" screenOptions={sharedHeaderOptions}>
         <Stack.Screen
           name="InterestList"
           component={InterestListScreen}
@@ -36,7 +36,7 @@ export default function RootNavigator(): ReactElement {
           component={CreateInterestScreen}
           options={({ navigation }) => ({
             title: 'New Interest',
-            headerLeft: () => <HeaderLeftControls navigation={navigation} />,
+            ...headerLeftOptions(navigation),
           })}
         />
         <Stack.Screen
@@ -44,7 +44,7 @@ export default function RootNavigator(): ReactElement {
           component={InterestDetailScreen}
           options={({ navigation }) => ({
             title: '',
-            headerLeft: () => <HeaderLeftControls navigation={navigation} />,
+            ...headerLeftOptions(navigation),
           })}
         />
         <Stack.Screen
@@ -52,15 +52,15 @@ export default function RootNavigator(): ReactElement {
           component={NoteJournalScreen}
           options={({ navigation }) => ({
             title: 'Journal',
-            headerLeft: () => <HeaderLeftControls navigation={navigation} />,
+            ...headerLeftOptions(navigation),
           })}
         />
         <Stack.Screen
           name="EditInterest"
           component={EditInterestScreen}
           options={({ navigation }) => ({
-            title: 'Edit Interest',
-            headerLeft: () => <HeaderLeftControls navigation={navigation} />,
+            title: 'Edit',
+            ...headerLeftOptions(navigation),
           })}
         />
         <Stack.Screen
@@ -68,7 +68,7 @@ export default function RootNavigator(): ReactElement {
           component={GuidedSetupScreen}
           options={({ navigation }) => ({
             title: 'A few more details',
-            headerLeft: () => <HeaderLeftControls navigation={navigation} />,
+            ...headerLeftOptions(navigation),
           })}
         />
       </Stack.Navigator>

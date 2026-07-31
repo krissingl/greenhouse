@@ -1,25 +1,19 @@
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useCallback, useState, type ReactElement } from 'react';
+import { useCallback, useEffect, useState, type ReactElement } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import InterestStateIcon from '../components/InterestStateIcon';
 import { GroupRow, OptionGroup } from '../components/OptionGroup';
 import type { Constraint, SupplyItem } from '../domain/constraint';
-import { displayLabel, type Interest, type InterestState } from '../domain/interest';
+import { displayLabel, type Interest } from '../domain/interest';
 import type { RootStackParamList } from '../navigation/RootNavigator';
-import { describeCapability } from './describeCapability';
 import { COVERED_AXES, summarizeAnswer, type EnrichmentAxis } from './enrichmentQuestions';
 import { constraintService } from '../services/ConstraintService';
 import { interestService } from '../services/InterestService';
 import { useTheme, type Theme } from '../theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'InterestDetail'>;
-
-const STATE_ICON: Record<InterestState, string> = {
-  Backlog: '🌰',
-  InProgress: '🌱',
-  Complete: '🌳',
-};
 
 const AXIS_LABELS: Record<EnrichmentAxis, string> = {
   Type: 'Type',
@@ -29,14 +23,6 @@ const AXIS_LABELS: Record<EnrichmentAxis, string> = {
   Social: 'Social',
   WeatherSeason: 'Weather',
 };
-
-// The tip explaining what the app can do only needs to be seen once — it is
-// dismissed for the remainder of this app run (not persisted; resets on
-// restart), not re-shown every time a different interest is opened.
-let capabilityTipDismissedThisSession = false;
-export function __resetCapabilityTipDismissedForTests(): void {
-  capabilityTipDismissedThisSession = false;
-}
 
 function formatDisplayDate(iso: string): string {
   return new Date(iso).toLocaleString(undefined, {
@@ -210,7 +196,6 @@ export default function InterestDetailScreen({ route, navigation }: Props): Reac
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [suppliesExpanded, setSuppliesExpanded] = useState(false);
-  const [tipDismissed, setTipDismissed] = useState(capabilityTipDismissedThisSession);
 
   useFocusEffect(
     useCallback(() => {
@@ -235,6 +220,13 @@ export default function InterestDetailScreen({ route, navigation }: Props): Reac
       };
     }, [interestId]),
   );
+
+  const state = interest ? interest.state : null;
+  useEffect(() => {
+    navigation.setOptions({
+      headerTitle: state ? () => <InterestStateIcon state={state} /> : undefined,
+    });
+  }, [navigation, state]);
 
   if (loadError) {
     return (
@@ -282,23 +274,11 @@ export default function InterestDetailScreen({ route, navigation }: Props): Reac
     }
   };
 
-  const handleDismissTip = () => {
-    capabilityTipDismissedThisSession = true;
-    setTipDismissed(true);
-  };
-
-  const capabilityCopy = describeCapability(constraints, interest.type, interest.typeSkippedAt);
   const allAxesAnswered = COVERED_AXES.every((axis) => isAxisAnswered(axis, interest, constraints));
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <View style={styles.titleRow}>
-        <Text
-          style={styles.stateIcon}
-          accessibilityLabel={`State: ${displayLabel(interest.state)}`}
-        >
-          {STATE_ICON[interest.state]}
-        </Text>
         <View style={styles.titleTextGroup}>
           <Text style={{ color: theme.colors.text, fontSize: theme.typography.h2.size }}>
             {interest.title}
@@ -333,20 +313,6 @@ export default function InterestDetailScreen({ route, navigation }: Props): Reac
       </Text>
       {interest.dueBy && (
         <Text style={{ color: theme.colors.textTertiary }}>Due by: {formatDueDate(interest.dueBy)}</Text>
-      )}
-
-      {!tipDismissed && (
-        <View
-          style={[
-            styles.tipCard,
-            { backgroundColor: theme.colors.primaryContainer, borderLeftColor: theme.colors.secondary },
-          ]}
-        >
-          <Text style={{ color: theme.colors.text, flex: 1, fontStyle: 'italic' }}>{capabilityCopy}</Text>
-          <Pressable accessibilityLabel="Dismiss tip" onPress={handleDismissTip} hitSlop={8}>
-            <Text style={{ color: theme.colors.textSecondary }}>✕</Text>
-          </Pressable>
-        </View>
       )}
 
       {actionError && (
@@ -427,24 +393,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  stateIcon: {
-    fontSize: 28,
-    marginRight: 10,
-  },
   titleTextGroup: {
     flex: 1,
   },
   titleIcon: {
     marginLeft: 12,
-  },
-  tipCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 16,
-    padding: 12,
-    borderRadius: 10,
-    borderLeftWidth: 3,
   },
   answerGroup: {
     marginTop: 20,

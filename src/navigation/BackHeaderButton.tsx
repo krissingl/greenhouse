@@ -9,16 +9,17 @@ interface Props {
   navigation: NavigationProp<RootStackParamList>;
 }
 
-export default function HomeHeaderButton({ navigation }: Props): ReactElement {
+export default function BackHeaderButton({ navigation }: Props): ReactElement {
   const theme = useTheme();
 
-  const goHome = () => {
-    navigation.reset({ index: 0, routes: [{ name: 'InterestList' }] });
-  };
-
   return (
-    <Pressable onPress={goHome} hitSlop={8} accessibilityRole="button" accessibilityLabel="Home">
-      <Text style={{ color: theme.colors.primary, fontSize: theme.typography.h3.size }}>⌂</Text>
+    <Pressable
+      onPress={() => navigation.goBack()}
+      hitSlop={8}
+      accessibilityRole="button"
+      accessibilityLabel="Back"
+    >
+      <Text style={{ color: theme.colors.primary, fontSize: theme.typography.h3.size }}>‹</Text>
     </Pressable>
   );
 }
