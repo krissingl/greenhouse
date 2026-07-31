@@ -1,3 +1,4 @@
+import Feather from '@expo/vector-icons/Feather';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
@@ -80,6 +81,16 @@ function isAxisAnswered(axis: EnrichmentAxis, interest: Interest, constraints: C
   return constraint !== undefined && constraint.status !== 'Unknown';
 }
 
+function RowActionIcon({ answered, theme }: { answered: boolean; theme: Theme }): ReactElement {
+  return (
+    <Feather
+      name={answered ? 'edit-2' : 'plus'}
+      size={theme.typography.title.size}
+      color={theme.colors.primary}
+    />
+  );
+}
+
 function AnswerRow({
   label,
   valueText,
@@ -101,9 +112,7 @@ function AnswerRow({
         onPress={onEditPress}
         hitSlop={8}
       >
-        <Text style={{ color: theme.colors.primary, fontSize: theme.typography.body.size }}>
-          {answered ? '✎' : '＋'}
-        </Text>
+        <RowActionIcon answered={answered} theme={theme} />
       </Pressable>
     </GroupRow>
   );
@@ -188,7 +197,7 @@ function SuppliesRow({
           </Text>
         </Pressable>
         <Pressable accessibilityLabel="Edit Supplies" onPress={onEditPress} hitSlop={8}>
-          <Text style={{ color: theme.colors.primary, fontSize: theme.typography.body.size }}>✎</Text>
+          <RowActionIcon answered theme={theme} />
         </Pressable>
       </GroupRow>
       {expanded && items.length > 0 && (

@@ -164,6 +164,7 @@ export default function EnrichmentCard({
               <OptionRow
                 key={String(option.value)}
                 label={option.label}
+                description={option.description}
                 selected={answer?.status === 'Set' && answer.value === option.value}
                 onPress={() => onAnswer({ status: 'Set', value: option.value })}
                 isLast={index === question.options.length - 1}

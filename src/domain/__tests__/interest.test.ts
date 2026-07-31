@@ -43,7 +43,7 @@ describe('displayLabel', () => {
   });
 
   it('maps interest types to their garden-metaphor display names', () => {
-    expect(displayLabel('OneTimeProject')).toBe('Trials');
+    expect(displayLabel('OneTimeProject')).toBe('Cuttings');
     expect(displayLabel('StructuredLearning')).toBe('Trellises');
     expect(displayLabel('UnstructuredLearning')).toBe('Evergreens');
   });

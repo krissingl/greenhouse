@@ -556,6 +556,46 @@ describe('EnrichmentCard', () => {
     expect(focusSpy).toHaveBeenCalled();
   });
 
+  it('renders an inline one-line description under each type option', async () => {
+    const { getByText } = await render(
+      <ThemeProvider>
+        <EnrichmentCard
+          axis="Type"
+          answer={null}
+          onAnswer={jest.fn()}
+          onBack={jest.fn()}
+          onForward={jest.fn()}
+        />
+      </ThemeProvider>,
+    );
+
+    expect(getByText('Cuttings')).toBeTruthy();
+    expect(getByText('One thing to make or do.')).toBeTruthy();
+
+    expect(getByText('Trellises')).toBeTruthy();
+    expect(getByText('A path of ordered steps or lessons.')).toBeTruthy();
+
+    expect(getByText('Evergreens')).toBeTruthy();
+    expect(getByText('Ongoing, with no defined end.')).toBeTruthy();
+  });
+
+  it('leaves options without a configured description undecorated', async () => {
+    const { getByText, queryByText } = await render(
+      <ThemeProvider>
+        <EnrichmentCard
+          axis="Location"
+          answer={null}
+          onAnswer={jest.fn()}
+          onBack={jest.fn()}
+          onForward={jest.fn()}
+        />
+      </ThemeProvider>,
+    );
+
+    expect(getByText('Home')).toBeTruthy();
+    expect(queryByText('One thing to make or do.')).toBeNull();
+  });
+
   it('renders single-select axis options as a bordered group of rows with a radio indicator', async () => {
     const { getByText } = await render(
       <ThemeProvider>

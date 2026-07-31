@@ -43,6 +43,7 @@ export function GroupRow({ children, isLast = false, style }: GroupRowProps): Re
 
 interface OptionRowProps {
   label: string;
+  description?: string;
   selected: boolean;
   onPress: () => void;
   isLast?: boolean;
@@ -50,6 +51,7 @@ interface OptionRowProps {
 
 export function OptionRow({
   label,
+  description,
   selected,
   onPress,
   isLast = false,
@@ -58,7 +60,23 @@ export function OptionRow({
 
   return (
     <Pressable onPress={onPress} style={[styles.row, rowBorderStyle(theme, isLast)]}>
-      <Text style={[styles.rowLabel, { color: theme.colors.text }]}>{label}</Text>
+      <View style={styles.rowLabelGroup}>
+        <Text style={{ color: theme.colors.text, fontSize: theme.typography.body.size }}>
+          {label}
+        </Text>
+        {description !== undefined && (
+          <Text
+            style={{
+              marginTop: theme.spacing.xs,
+              color: theme.colors.textSecondary,
+              fontSize: theme.typography.bodySmall.size,
+              lineHeight: theme.typography.bodySmall.lineHeight,
+            }}
+          >
+            {description}
+          </Text>
+        )}
+      </View>
       <View
         style={[
           styles.radioOuter,
@@ -188,6 +206,9 @@ const styles = StyleSheet.create({
   rowLabel: {
     flex: 1,
     fontSize: 16,
+  },
+  rowLabelGroup: {
+    flex: 1,
   },
   radioOuter: {
     width: 20,

@@ -1,6 +1,7 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { act, fireEvent, render } from '@testing-library/react-native';
 import type { ReactElement } from 'react';
+import { StyleSheet, type StyleProp, type TextStyle } from 'react-native';
 
 import type { Constraint, ConstraintDimension } from '../../domain/constraint';
 import type { Interest } from '../../domain/interest';
@@ -57,6 +58,16 @@ function makeFullyAnsweredConstraints(): Constraint[] {
     Season: { status: 'None' },
     TimeOfDay: { status: 'None' },
   });
+}
+
+function fontFamiliesWithin(node: unknown): string[] {
+  if (typeof node !== 'object' || node === null) {
+    return [];
+  }
+  const element = node as { props?: { style?: unknown }; children?: unknown[] };
+  const own = StyleSheet.flatten(element.props?.style as StyleProp<TextStyle>)?.fontFamily;
+  const descendants = (element.children ?? []).flatMap(fontFamiliesWithin);
+  return own ? [own, ...descendants] : descendants;
 }
 
 function makeNavigation(): { navigate: jest.Mock; setOptions: jest.Mock } {
@@ -447,6 +458,39 @@ describe('InterestDetailScreen', () => {
     expect(queryByText(/I can suggest this/)).toBeNull();
     expect(queryByText(/I can only find this/)).toBeNull();
     expect(queryByText(/I know a little about this/)).toBeNull();
+  });
+
+  it('renders the Type row with the renamed OneTimeProject display label', async () => {
+    jest
+      .spyOn(interestService, 'get')
+      .mockResolvedValueOnce({ ...INTEREST, type: 'OneTimeProject' });
+    jest.spyOn(constraintService, 'listForInterest').mockResolvedValueOnce(makeConstraints());
+    const navigation = makeNavigation();
+
+    const { findByText, queryByText } = await renderScreen(navigation);
+
+    expect(await findByText(/Type:\s*Cuttings/)).toBeTruthy();
+    expect(queryByText(/Type:\s*Trials/)).toBeNull();
+  });
+
+  it('renders the data-list row affordances as icons rather than text glyphs', async () => {
+    jest.spyOn(interestService, 'get').mockResolvedValueOnce(INTEREST);
+    jest.spyOn(constraintService, 'listForInterest').mockResolvedValueOnce(
+      makeConstraints({
+        Supplies: { status: 'Set', value: [{ name: 'Paint brush', have: false }] },
+        Location: { status: 'Set', value: 'Home' },
+      }),
+    );
+    const navigation = makeNavigation();
+
+    const { findByLabelText, queryByText } = await renderScreen(navigation);
+
+    expect(queryByText('✎')).toBeNull();
+    expect(queryByText('＋')).toBeNull();
+
+    for (const label of ['Add Time', 'Edit Location', 'Edit Supplies']) {
+      expect(fontFamiliesWithin(await findByLabelText(label))).toContain('feather');
+    }
   });
 
   it('puts the state icon in the header title slot and keeps the state label in the body', async () => {

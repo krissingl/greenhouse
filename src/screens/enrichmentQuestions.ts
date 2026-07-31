@@ -42,6 +42,8 @@ export type MultiSelectOption = WeatherCondition | Season | TimeOfDay;
 export interface ChipOption<V> {
   label: string;
   value: V;
+  /** Optional one-line explanation rendered beneath the option's label. */
+  description?: string;
 }
 
 export interface ChipQuestionConfig {
@@ -87,9 +89,21 @@ export const enrichmentQuestions: Record<EnrichmentAxis, QuestionConfig> = {
     shortLabel: 'type',
     prompt: 'What kind of interest is this?',
     options: [
-      { label: displayLabel('OneTimeProject'), value: 'OneTimeProject' },
-      { label: displayLabel('StructuredLearning'), value: 'StructuredLearning' },
-      { label: displayLabel('UnstructuredLearning'), value: 'UnstructuredLearning' },
+      {
+        label: displayLabel('OneTimeProject'),
+        value: 'OneTimeProject',
+        description: 'One thing to make or do.',
+      },
+      {
+        label: displayLabel('StructuredLearning'),
+        value: 'StructuredLearning',
+        description: 'A path of ordered steps or lessons.',
+      },
+      {
+        label: displayLabel('UnstructuredLearning'),
+        value: 'UnstructuredLearning',
+        description: 'Ongoing, with no defined end.',
+      },
     ],
   },
   Time: {

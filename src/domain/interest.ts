@@ -34,10 +34,10 @@ export type InterestPatch = Partial<
   Pick<Interest, 'title' | 'type' | 'state' | 'archivedAt' | 'typeSkippedAt' | 'dueBy'>
 >;
 
-// A trial is one finite run; a trellis is scaffolding built in advance for
-// something to climb (a Step list); an evergreen never ends.
+// A cutting is one finite thing taken and grown; a trellis is scaffolding built
+// in advance for something to climb (a Step list); an evergreen never ends.
 const DISPLAY_LABELS: Record<InterestType | InterestState, string> = {
-  OneTimeProject: 'Trials',
+  OneTimeProject: 'Cuttings',
   StructuredLearning: 'Trellises',
   UnstructuredLearning: 'Evergreens',
   Backlog: 'Backlog',

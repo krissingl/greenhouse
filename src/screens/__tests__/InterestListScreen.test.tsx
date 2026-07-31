@@ -188,7 +188,7 @@ describe('InterestListScreen', () => {
 
     const { findByText } = await renderScreen(navigation);
 
-    expect(await findByText('TRIALS')).toBeTruthy();
+    expect(await findByText('CUTTINGS')).toBeTruthy();
     expect(await findByText('TRELLISES')).toBeTruthy();
     expect(await findByText('UNPLANTED')).toBeTruthy();
     expect(await findByText('Build shelves')).toBeTruthy();
@@ -222,7 +222,7 @@ describe('InterestListScreen', () => {
       fireEvent.press(await findByText('In progress · All'));
     });
     await act(async () => {
-      fireEvent.press(await findByText('Trials'));
+      fireEvent.press(await findByText('Cuttings'));
     });
 
     expect(listSpy).toHaveBeenLastCalledWith(
