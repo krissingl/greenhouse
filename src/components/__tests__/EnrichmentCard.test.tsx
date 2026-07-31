@@ -1,5 +1,5 @@
 import { act, fireEvent, render } from '@testing-library/react-native';
-import { TextInput } from 'react-native';
+import { StyleSheet, TextInput } from 'react-native';
 
 import { ThemeProvider } from '../../theme';
 import EnrichmentCard from '../EnrichmentCard';
@@ -192,6 +192,23 @@ describe('EnrichmentCard', () => {
     });
 
     expect(onAnswer).toHaveBeenCalledWith({ status: 'Unknown' });
+  });
+
+  it('keeps the "Clear answer" touch target on the control instead of the whole row', async () => {
+    const { getByLabelText } = await render(
+      <ThemeProvider>
+        <EnrichmentCard
+          axis="Supplies"
+          answer={{ status: 'Set', value: [{ name: 'Paint brush', have: false }] }}
+          onAnswer={jest.fn()}
+          onBack={jest.fn()}
+          onForward={jest.fn()}
+        />
+      </ThemeProvider>,
+    );
+
+    const control = getByLabelText('Clear answer');
+    expect(StyleSheet.flatten(control.props.style)).toMatchObject({ alignSelf: 'flex-start' });
   });
 
   it('supports adding multiple supply items without navigating away', async () => {

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactElement } from 'react';
 import { Animated, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { ActionRow, CheckRow, GroupRow, OptionGroup, OptionRow } from './OptionGroup';
+import { ActionRow, CheckRow, Checkbox, GroupRow, OptionGroup, OptionRow } from './OptionGroup';
 import type { ConstraintStatus, ConstraintValue, SupplyItem } from '../domain/constraint';
 import type { InterestType } from '../domain/interest';
 import {
@@ -241,11 +241,17 @@ function ClearAnswerButton({ onPress }: { onPress: () => void }): ReactElement {
   return (
     <Animated.View
       style={{
+        alignSelf: 'flex-start',
         opacity: anim,
         transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [-8, 0] }) }],
       }}
     >
-      <Pressable onPress={onPress} style={styles.textButton}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Clear answer"
+        onPress={onPress}
+        style={styles.textButton}
+      >
         <Text style={{ color: theme.colors.textSecondary }}>Clear answer</Text>
       </Pressable>
     </Animated.View>
@@ -305,15 +311,9 @@ function SuppliesEditor({
           next[index] = { ...item, have: !item.have };
           onChangeItems(next);
         }}
-        style={[
-          styles.supplyCheckbox,
-          {
-            borderColor: item.have ? theme.colors.primary : theme.colors.border,
-            backgroundColor: item.have ? theme.colors.primary : 'transparent',
-          },
-        ]}
+        hitSlop={8}
       >
-        {item.have && <Text style={{ color: theme.colors.textOnPrimary, fontSize: 13 }}>✓</Text>}
+        <Checkbox checked={item.have} />
       </Pressable>
       <Pressable
         accessibilityLabel="Remove item"
@@ -425,6 +425,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   textButton: {
+    alignSelf: 'flex-start',
     marginTop: 12,
     paddingHorizontal: 4,
     paddingVertical: 8,
@@ -441,14 +442,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 6,
-  },
-  supplyCheckbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 5,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   dueByInput: {
     flex: 1,

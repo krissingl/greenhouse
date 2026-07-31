@@ -266,7 +266,7 @@ describe('InterestDetailScreen', () => {
     });
   });
 
-  it('renders a collapsible Supplies section leading with Need it, expanding to list items', async () => {
+  it('summarizes Supplies as a missing count and expands to a checkbox list without have/need labels', async () => {
     jest.spyOn(interestService, 'get').mockResolvedValueOnce(INTEREST);
     jest.spyOn(constraintService, 'listForInterest').mockResolvedValueOnce(
       makeConstraints({
@@ -281,17 +281,134 @@ describe('InterestDetailScreen', () => {
     );
     const navigation = makeNavigation();
 
-    const { findByText, queryByText } = await renderScreen(navigation);
+    const { findByText, findAllByRole, queryByText } = await renderScreen(navigation);
 
-    expect(await findByText(/Supplies:\s*1 need it · 1 have it/)).toBeTruthy();
-    expect(queryByText('Paint brush — need it')).toBeNull();
+    expect(await findByText(/Supplies:\s*1 Missing/)).toBeTruthy();
+    expect(queryByText(/need it/)).toBeNull();
+    expect(queryByText(/have it/)).toBeNull();
+    expect(queryByText('Paint brush')).toBeNull();
 
     await act(async () => {
-      fireEvent.press(await findByText(/Supplies:\s*1 need it · 1 have it/));
+      fireEvent.press(await findByText(/Supplies:\s*1 Missing/));
     });
 
-    expect(await findByText(/Paint brush/)).toBeTruthy();
-    expect(await findByText(/Canvas/)).toBeTruthy();
+    expect(await findByText('Paint brush')).toBeTruthy();
+    expect(await findByText('Canvas')).toBeTruthy();
+    expect(queryByText(/need it/)).toBeNull();
+    expect(queryByText(/have it/)).toBeNull();
+
+    const checkboxes = await findAllByRole('checkbox');
+    expect(checkboxes).toHaveLength(2);
+    expect(checkboxes[0].props.accessibilityState).toMatchObject({ checked: true });
+    expect(checkboxes[1].props.accessibilityState).toMatchObject({ checked: false });
+  });
+
+  it('summarizes Supplies with nothing outstanding rather than "0 Missing"', async () => {
+    jest.spyOn(interestService, 'get').mockResolvedValueOnce(INTEREST);
+    jest.spyOn(constraintService, 'listForInterest').mockResolvedValueOnce(
+      makeConstraints({
+        Supplies: { status: 'Set', value: [{ name: 'Canvas', have: true }] },
+      }),
+    );
+    const navigation = makeNavigation();
+
+    const { findByText, queryByText } = await renderScreen(navigation);
+
+    expect(await findByText(/Supplies:\s*All on hand/)).toBeTruthy();
+    expect(queryByText(/0 Missing/)).toBeNull();
+  });
+
+  it('persists a supply checkbox toggle through ConstraintService.answer', async () => {
+    jest.spyOn(interestService, 'get').mockResolvedValueOnce(INTEREST);
+    jest.spyOn(constraintService, 'listForInterest').mockResolvedValueOnce(
+      makeConstraints({
+        Supplies: {
+          status: 'Set',
+          value: [
+            { name: 'Canvas', have: true },
+            { name: 'Paint brush', have: false },
+          ],
+        },
+      }),
+    );
+    const answer = jest.spyOn(constraintService, 'answer').mockResolvedValueOnce({
+      id: 'constraint-Supplies',
+      interestId: INTEREST.id,
+      dimension: 'Supplies',
+      status: 'Set',
+      value: [
+        { name: 'Canvas', have: true },
+        { name: 'Paint brush', have: true },
+      ],
+      createdAt: '2026-07-01T00:00:00.000Z',
+      updatedAt: '2026-07-02T00:00:00.000Z',
+    });
+    const navigation = makeNavigation();
+
+    const { findByText, findAllByRole } = await renderScreen(navigation);
+
+    await act(async () => {
+      fireEvent.press(await findByText(/Supplies:\s*1 Missing/));
+    });
+
+    await act(async () => {
+      fireEvent.press((await findAllByRole('checkbox'))[1]);
+    });
+
+    expect(answer).toHaveBeenCalledWith('interest-1', 'Supplies', {
+      status: 'Set',
+      value: [
+        { name: 'Canvas', have: true },
+        { name: 'Paint brush', have: true },
+      ],
+    });
+    expect(await findByText(/Supplies:\s*All on hand/)).toBeTruthy();
+    expect(navigation.navigate).not.toHaveBeenCalled();
+  });
+
+  it('shows inline feedback and restores the checkbox when persisting a supply toggle fails', async () => {
+    jest.spyOn(interestService, 'get').mockResolvedValueOnce(INTEREST);
+    jest.spyOn(constraintService, 'listForInterest').mockResolvedValueOnce(
+      makeConstraints({
+        Supplies: { status: 'Set', value: [{ name: 'Paint brush', have: false }] },
+      }),
+    );
+    jest.spyOn(constraintService, 'answer').mockRejectedValueOnce(new Error('boom'));
+    const navigation = makeNavigation();
+
+    const { findByText, findAllByRole } = await renderScreen(navigation);
+
+    await act(async () => {
+      fireEvent.press(await findByText(/Supplies:\s*1 Missing/));
+    });
+
+    await act(async () => {
+      fireEvent.press((await findAllByRole('checkbox'))[0]);
+    });
+
+    expect(await findByText('Could not update supplies. Please try again.')).toBeTruthy();
+    expect(await findByText(/Supplies:\s*1 Missing/)).toBeTruthy();
+    expect((await findAllByRole('checkbox'))[0].props.accessibilityState).toMatchObject({
+      checked: false,
+    });
+  });
+
+  it('exposes the Supplies disclosure control with an expanded state', async () => {
+    jest.spyOn(interestService, 'get').mockResolvedValueOnce(INTEREST);
+    jest.spyOn(constraintService, 'listForInterest').mockResolvedValueOnce(
+      makeConstraints({
+        Supplies: { status: 'Set', value: [{ name: 'Paint brush', have: false }] },
+      }),
+    );
+    const navigation = makeNavigation();
+
+    const { findByLabelText } = await renderScreen(navigation);
+
+    await act(async () => {
+      fireEvent.press(await findByLabelText('Expand supplies'));
+    });
+
+    expect(await findByLabelText('Collapse supplies')).toBeTruthy();
   });
 
   it('navigates to Edit via the title-row edit icon', async () => {

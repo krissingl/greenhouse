@@ -71,6 +71,26 @@ export function OptionRow({
   );
 }
 
+export function Checkbox({ checked }: { checked: boolean }): ReactElement {
+  const theme = useTheme();
+
+  return (
+    <View
+      style={[
+        styles.checkboxOuter,
+        {
+          borderColor: checked ? theme.colors.primary : theme.colors.border,
+          backgroundColor: checked ? theme.colors.primary : 'transparent',
+        },
+      ]}
+    >
+      {checked && (
+        <Text style={[styles.checkboxMark, { color: theme.colors.textOnPrimary }]}>✓</Text>
+      )}
+    </View>
+  );
+}
+
 interface CheckRowProps {
   label: string;
   checked: boolean;
@@ -89,17 +109,7 @@ export function CheckRow({ label, checked, onToggle, isLast = false }: CheckRowP
       style={[styles.row, rowBorderStyle(theme, isLast)]}
     >
       <Text style={[styles.rowLabel, { color: theme.colors.text }]}>{label}</Text>
-      <View
-        style={[
-          styles.checkboxOuter,
-          {
-            borderColor: checked ? theme.colors.primary : theme.colors.border,
-            backgroundColor: checked ? theme.colors.primary : 'transparent',
-          },
-        ]}
-      >
-        {checked && <Text style={{ color: theme.colors.textOnPrimary, fontSize: 13 }}>✓</Text>}
-      </View>
+      <Checkbox checked={checked} />
     </Pressable>
   );
 }
@@ -199,5 +209,13 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  checkboxMark: {
+    fontSize: 12,
+    lineHeight: 16,
+    width: 16,
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    includeFontPadding: false,
   },
 });

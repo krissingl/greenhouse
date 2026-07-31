@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState, type ReactElement } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import InterestStateIcon from '../components/InterestStateIcon';
-import { GroupRow, OptionGroup } from '../components/OptionGroup';
+import { CheckRow, GroupRow, OptionGroup } from '../components/OptionGroup';
 import type { Constraint, SupplyItem } from '../domain/constraint';
 import { displayLabel, type Interest } from '../domain/interest';
 import type { RootStackParamList } from '../navigation/RootNavigator';
@@ -109,10 +109,19 @@ function AnswerRow({
   );
 }
 
+function suppliesSummary(items: SupplyItem[]): { text: string; missing: number } {
+  if (items.length === 0) {
+    return { text: 'No supplies needed', missing: 0 };
+  }
+  const missing = items.filter((item) => !item.have).length;
+  return { text: missing === 0 ? 'All on hand' : `${missing} Missing`, missing };
+}
+
 function SuppliesRow({
   constraint,
   expanded,
   onToggleExpand,
+  onToggleItem,
   onEditPress,
   isLast,
   theme,
@@ -120,6 +129,7 @@ function SuppliesRow({
   constraint: Constraint | undefined;
   expanded: boolean;
   onToggleExpand: () => void;
+  onToggleItem: (index: number) => void;
   onEditPress: () => void;
   isLast: boolean;
   theme: Theme;
@@ -151,21 +161,30 @@ function SuppliesRow({
   }
 
   const items = (constraint.value as SupplyItem[] | null) ?? [];
-  const needItems = items.filter((item) => !item.have);
-  const haveItems = items.filter((item) => item.have);
-  const summary =
-    items.length === 0 ? 'No supplies needed' : `${needItems.length} need it · ${haveItems.length} have it`;
+  const summary = suppliesSummary(items);
 
   return (
     <View>
       <GroupRow isLast={isLast && !expanded}>
-        <Pressable onPress={onToggleExpand} style={styles.suppliesToggle}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={expanded ? 'Collapse supplies' : 'Expand supplies'}
+          accessibilityState={{ expanded }}
+          onPress={onToggleExpand}
+          style={styles.suppliesToggle}
+        >
           <Text style={styles.rowText}>
             <Text style={{ color: theme.colors.text, fontWeight: '600' }}>Supplies: </Text>
-            <Text style={{ color: theme.colors.text }}>{summary}</Text>
+            <Text
+              style={{
+                color: summary.missing > 0 ? theme.colors.error : theme.colors.textSecondary,
+              }}
+            >
+              {summary.text}
+            </Text>
           </Text>
-          <Text style={{ color: theme.colors.textSecondary, marginRight: 8 }}>
-            {expanded ? '▾' : '▸'}
+          <Text style={[styles.disclosure, { color: theme.colors.text }]}>
+            {expanded ? '▼' : '▶'}
           </Text>
         </Pressable>
         <Pressable accessibilityLabel="Edit Supplies" onPress={onEditPress} hitSlop={8}>
@@ -174,15 +193,14 @@ function SuppliesRow({
       </GroupRow>
       {expanded && items.length > 0 && (
         <View style={[styles.suppliesList, { borderColor: theme.colors.border }]}>
-          {needItems.map((item, index) => (
-            <Text key={`need-${index}`} style={{ color: theme.colors.text, paddingVertical: 4 }}>
-              ○ {item.name} — need it
-            </Text>
-          ))}
-          {haveItems.map((item, index) => (
-            <Text key={`have-${index}`} style={{ color: theme.colors.textSecondary, paddingVertical: 4 }}>
-              ● {item.name} — have it
-            </Text>
+          {items.map((item, index) => (
+            <CheckRow
+              key={index}
+              label={item.name}
+              checked={item.have}
+              onToggle={() => onToggleItem(index)}
+              isLast={index === items.length - 1}
+            />
           ))}
         </View>
       )}
@@ -276,6 +294,29 @@ export default function InterestDetailScreen({ route, navigation }: Props): Reac
     }
   };
 
+  const handleToggleSupply = async (index: number) => {
+    const supplies = constraints.find((c) => c.dimension === 'Supplies');
+    if (!supplies || supplies.status !== 'Set') {
+      return;
+    }
+
+    const items = (supplies.value as SupplyItem[] | null) ?? [];
+    const nextItems = items.map((item, i) => (i === index ? { ...item, have: !item.have } : item));
+    const previous = constraints;
+
+    setActionError(null);
+    setConstraints((current) =>
+      current.map((c) => (c.dimension === 'Supplies' ? { ...c, value: nextItems } : c)),
+    );
+
+    try {
+      await constraintService.answer(interestId, 'Supplies', { status: 'Set', value: nextItems });
+    } catch {
+      setConstraints(previous);
+      setActionError('Could not update supplies. Please try again.');
+    }
+  };
+
   const allAxesAnswered = COVERED_AXES.every((axis) => isAxisAnswered(axis, interest, constraints));
 
   return (
@@ -290,20 +331,36 @@ export default function InterestDetailScreen({ route, navigation }: Props): Reac
           </Text>
         </View>
         <Pressable
+          accessibilityRole="button"
           accessibilityLabel="Edit"
           onPress={() => navigation.navigate('EditInterest', { interestId })}
           hitSlop={8}
-          style={styles.titleIcon}
+          style={styles.titleAction}
         >
-          <Text style={{ color: theme.colors.primary, fontSize: theme.typography.title.size }}>✎</Text>
+          <Text
+            style={[
+              styles.titleActionLabel,
+              { color: theme.colors.primary, fontSize: theme.typography.bodySmall.size },
+            ]}
+          >
+            Edit
+          </Text>
         </Pressable>
         <Pressable
+          accessibilityRole="button"
           accessibilityLabel="Journal"
           onPress={() => navigation.navigate('NoteJournal', { interestId })}
           hitSlop={8}
-          style={styles.titleIcon}
+          style={styles.titleAction}
         >
-          <Text style={{ color: theme.colors.primary, fontSize: theme.typography.title.size }}>📝</Text>
+          <Text
+            style={[
+              styles.titleActionLabel,
+              { color: theme.colors.primary, fontSize: theme.typography.bodySmall.size },
+            ]}
+          >
+            Journal
+          </Text>
         </Pressable>
       </View>
 
@@ -343,6 +400,7 @@ export default function InterestDetailScreen({ route, navigation }: Props): Reac
                   constraint={constraints.find((c) => c.dimension === 'Supplies')}
                   expanded={suppliesExpanded}
                   onToggleExpand={() => setSuppliesExpanded((prev) => !prev)}
+                  onToggleItem={handleToggleSupply}
                   onEditPress={() =>
                     navigation.navigate('GuidedSetup', { interestId, startDimension: axis })
                   }
@@ -398,8 +456,11 @@ const styles = StyleSheet.create({
   titleTextGroup: {
     flex: 1,
   },
-  titleIcon: {
-    marginLeft: 12,
+  titleAction: {
+    marginLeft: 16,
+  },
+  titleActionLabel: {
+    fontWeight: '600',
   },
   answerGroup: {
     marginTop: 20,
@@ -422,7 +483,11 @@ const styles = StyleSheet.create({
     borderTopWidth: 0,
     borderBottomLeftRadius: 12,
     borderBottomRightRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    overflow: 'hidden',
+  },
+  disclosure: {
+    marginRight: 8,
+    fontSize: 12,
+    lineHeight: 16,
   },
 });
