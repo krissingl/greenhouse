@@ -56,7 +56,7 @@ describe('runMigrations', () => {
     }).not.toThrow();
 
     const rows = db.getAllSync<{ id: number }>('SELECT id FROM schema_migrations;');
-    expect(rows).toHaveLength(6);
+    expect(rows).toHaveLength(7);
   });
 
   it('applies migrations 005 and 006 cleanly, adding due_by and creating notes', () => {
@@ -66,7 +66,7 @@ describe('runMigrations', () => {
     const rows = db.getAllSync<{ id: number; name: string }>(
       'SELECT id, name FROM schema_migrations ORDER BY id;',
     );
-    expect(rows).toHaveLength(6);
+    expect(rows).toHaveLength(7);
     expect(rows[4]).toMatchObject({ id: 5, name: 'add_due_by_to_interests' });
     expect(rows[5]).toMatchObject({ id: 6, name: 'create_notes' });
 

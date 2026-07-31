@@ -2,22 +2,12 @@ import { useEffect, useRef, useState, type ReactElement } from 'react';
 import { Animated, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { ActionRow, CheckRow, GroupRow, OptionGroup, OptionRow } from './OptionGroup';
-import type {
-  ConstraintStatus,
-  ConstraintValue,
-  Season,
-  SupplyItem,
-  TimeOfDay,
-  WeatherCondition,
-  WeatherSeasonConstraintValue,
-} from '../domain/constraint';
+import type { ConstraintStatus, ConstraintValue, SupplyItem } from '../domain/constraint';
 import type { InterestType } from '../domain/interest';
 import {
-  SEASONS,
-  TIMES_OF_DAY,
-  WEATHER_CONDITIONS,
   enrichmentQuestions,
   type EnrichmentAxis,
+  type MultiSelectOption,
 } from '../screens/enrichmentQuestions';
 import { useTheme } from '../theme';
 
@@ -32,12 +22,17 @@ interface EnrichmentCardProps {
   onAnswer: (answer: EnrichmentAnswer) => void;
   onBack: () => void;
   onForward: () => void;
-  /** WeatherSeason only — the Interest's current due date, offered as a follow-up on the Season/TimeOfDay branches. */
+  /** The Interest's current due date, offered as a follow-up on the Season and TimeOfDay cards. */
   dueBy?: string | null;
   onDueByChange?: (dueBy: string | null) => void;
 }
 
-type WeatherKind = 'Weather' | 'TimeOfDay' | 'Season';
+// A multi-select card is bound to exactly one of Weather/Season/TimeOfDay, so its
+// selections are homogeneous — but TypeScript only sees the union element type,
+// which is not assignable to any single one of ConstraintValue's array members.
+function asMultiSelectValue(selections: MultiSelectOption[]): ConstraintValue {
+  return selections as ConstraintValue;
+}
 
 export default function EnrichmentCard({
   axis,
@@ -53,23 +48,14 @@ export default function EnrichmentCard({
 
   const initialItems =
     question.variant === 'supplies' && answer?.status === 'Set' ? (answer.value as SupplyItem[]) : [];
-  const initialWeather =
-    question.variant === 'weather' && answer?.status === 'Set'
-      ? (answer.value as WeatherSeasonConstraintValue)
-      : null;
+  const initialSelections =
+    question.variant === 'multi' && answer?.status === 'Set'
+      ? (answer.value as MultiSelectOption[])
+      : [];
   const initialDueBy = dueBy ?? '';
 
   const [items, setItems] = useState<SupplyItem[]>(initialItems);
-  const [weatherKind, setWeatherKind] = useState<WeatherKind | null>(initialWeather?.kind ?? null);
-  const [weatherConditions, setWeatherConditions] = useState<WeatherCondition[]>(
-    initialWeather?.kind === 'Weather' ? initialWeather.conditions : [],
-  );
-  const [weatherTimes, setWeatherTimes] = useState<TimeOfDay[]>(
-    initialWeather?.kind === 'TimeOfDay' ? initialWeather.times : [],
-  );
-  const [weatherSeasons, setWeatherSeasons] = useState<Season[]>(
-    initialWeather?.kind === 'Season' ? initialWeather.seasons : [],
-  );
+  const [selections, setSelections] = useState<MultiSelectOption[]>(initialSelections);
   const [dueByDraft, setDueByDraft] = useState<string>(initialDueBy);
 
   // Every exit from this card (Back/Forward, Close, Home, hardware back, or the
@@ -78,42 +64,20 @@ export default function EnrichmentCard({
   // draft-holding axes (Supplies/Weather) would otherwise silently lose unsaved
   // edits on any exit path that isn't the explicit Back/Forward handlers.
   const itemsRef = useRef(items);
-  const weatherKindRef = useRef(weatherKind);
-  const weatherConditionsRef = useRef(weatherConditions);
-  const weatherTimesRef = useRef(weatherTimes);
-  const weatherSeasonsRef = useRef(weatherSeasons);
+  const selectionsRef = useRef(selections);
   const dueByDraftRef = useRef(dueByDraft);
   const onAnswerRef = useRef(onAnswer);
   const onDueByChangeRef = useRef(onDueByChange);
 
   useEffect(() => {
     itemsRef.current = items;
-    weatherKindRef.current = weatherKind;
-    weatherConditionsRef.current = weatherConditions;
-    weatherTimesRef.current = weatherTimes;
-    weatherSeasonsRef.current = weatherSeasons;
+    selectionsRef.current = selections;
     dueByDraftRef.current = dueByDraft;
     onAnswerRef.current = onAnswer;
     onDueByChangeRef.current = onDueByChange;
   });
 
-  const buildWeatherValue = (
-    kind: WeatherKind | null,
-    conditions: WeatherCondition[],
-    times: TimeOfDay[],
-    seasons: Season[],
-  ): WeatherSeasonConstraintValue | null => {
-    if (kind === 'Weather' && conditions.length > 0) {
-      return { kind: 'Weather', conditions };
-    }
-    if (kind === 'TimeOfDay' && times.length > 0) {
-      return { kind: 'TimeOfDay', times };
-    }
-    if (kind === 'Season' && seasons.length > 0) {
-      return { kind: 'Season', seasons };
-    }
-    return null;
-  };
+  const offersDueBy = question.variant === 'multi' && question.offersDueBy;
 
   useEffect(() => {
     return () => {
@@ -122,17 +86,15 @@ export default function EnrichmentCard({
         if (validItems.length > 0) {
           onAnswerRef.current({ status: 'Set', value: validItems });
         }
-      } else if (question.variant === 'weather') {
-        const value = buildWeatherValue(
-          weatherKindRef.current,
-          weatherConditionsRef.current,
-          weatherTimesRef.current,
-          weatherSeasonsRef.current,
-        );
-        if (value) {
-          onAnswerRef.current({ status: 'Set', value });
+      } else if (question.variant === 'multi') {
+        if (selectionsRef.current.length > 0) {
+          onAnswerRef.current({ status: 'Set', value: asMultiSelectValue(selectionsRef.current) });
         }
-        if (onDueByChangeRef.current && dueByDraftRef.current !== initialDueBy) {
+        if (
+          offersDueBy &&
+          onDueByChangeRef.current &&
+          dueByDraftRef.current !== initialDueBy
+        ) {
           onDueByChangeRef.current(
             dueByDraftRef.current.trim().length > 0 ? dueByDraftRef.current.trim() : null,
           );
@@ -147,18 +109,14 @@ export default function EnrichmentCard({
   const hasAnswer =
     question.variant === 'supplies'
       ? items.some((item) => item.name.trim() !== '')
-      : question.variant === 'weather'
-        ? buildWeatherValue(weatherKind, weatherConditions, weatherTimes, weatherSeasons) !== null ||
-          answer?.status === 'None'
+      : question.variant === 'multi'
+        ? selections.length > 0 || answer?.status === 'None'
         : answer !== null && answer.status !== 'Unknown';
 
   const handleClear = () => {
     onAnswer({ status: 'Unknown' });
     setItems([]);
-    setWeatherKind(null);
-    setWeatherConditions([]);
-    setWeatherTimes([]);
-    setWeatherSeasons([]);
+    setSelections([]);
   };
 
   const flushDraft = () => {
@@ -167,12 +125,11 @@ export default function EnrichmentCard({
       if (validItems.length > 0) {
         onAnswer({ status: 'Set', value: validItems });
       }
-    } else if (question.variant === 'weather') {
-      const value = buildWeatherValue(weatherKind, weatherConditions, weatherTimes, weatherSeasons);
-      if (value) {
-        onAnswer({ status: 'Set', value });
+    } else if (question.variant === 'multi') {
+      if (selections.length > 0) {
+        onAnswer({ status: 'Set', value: asMultiSelectValue(selections) });
       }
-      if (onDueByChange && dueByDraft !== initialDueBy) {
+      if (offersDueBy && onDueByChange && dueByDraft !== initialDueBy) {
         onDueByChange(dueByDraft.trim().length > 0 ? dueByDraft.trim() : null);
       }
     }
@@ -193,9 +150,6 @@ export default function EnrichmentCard({
     }
     onForward();
   };
-
-  const showDueByField =
-    question.variant === 'weather' && (weatherKind === 'Season' || weatherKind === 'TimeOfDay');
 
   return (
     <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
@@ -222,31 +176,16 @@ export default function EnrichmentCard({
           <SuppliesEditor items={items} onChangeItems={setItems} />
         )}
 
-        {question.variant === 'weather' && (
-          <WeatherSeasonEditor
-            kind={weatherKind}
-            conditions={weatherConditions}
-            times={weatherTimes}
-            seasons={weatherSeasons}
-            onSelectKind={(kind) => setWeatherKind(kind)}
-            onToggleCondition={(condition) =>
-              setWeatherConditions((prev) =>
-                prev.includes(condition)
-                  ? prev.filter((c) => c !== condition)
-                  : [...prev, condition],
+        {question.variant === 'multi' && (
+          <MultiSelectEditor
+            options={question.options}
+            selected={selections}
+            onToggle={(option) =>
+              setSelections((prev) =>
+                prev.includes(option) ? prev.filter((o) => o !== option) : [...prev, option],
               )
             }
-            onToggleTime={(time) =>
-              setWeatherTimes((prev) =>
-                prev.includes(time) ? prev.filter((t) => t !== time) : [...prev, time],
-              )
-            }
-            onToggleSeason={(season) =>
-              setWeatherSeasons((prev) =>
-                prev.includes(season) ? prev.filter((s) => s !== season) : [...prev, season],
-              )
-            }
-            showDueBy={showDueByField}
+            showDueBy={question.offersDueBy}
             dueByDraft={dueByDraft}
             onChangeDueBy={setDueByDraft}
           />
@@ -413,27 +352,17 @@ function SuppliesEditor({
   );
 }
 
-function WeatherSeasonEditor({
-  kind,
-  conditions,
-  times,
-  seasons,
-  onSelectKind,
-  onToggleCondition,
-  onToggleTime,
-  onToggleSeason,
+function MultiSelectEditor({
+  options,
+  selected,
+  onToggle,
   showDueBy,
   dueByDraft,
   onChangeDueBy,
 }: {
-  kind: WeatherKind | null;
-  conditions: WeatherCondition[];
-  times: TimeOfDay[];
-  seasons: Season[];
-  onSelectKind: (kind: WeatherKind) => void;
-  onToggleCondition: (condition: WeatherCondition) => void;
-  onToggleTime: (time: TimeOfDay) => void;
-  onToggleSeason: (season: Season) => void;
+  options: MultiSelectOption[];
+  selected: MultiSelectOption[];
+  onToggle: (option: MultiSelectOption) => void;
   showDueBy: boolean;
   dueByDraft: string;
   onChangeDueBy: (text: string) => void;
@@ -443,56 +372,16 @@ function WeatherSeasonEditor({
   return (
     <View style={styles.groupStack}>
       <OptionGroup>
-        <OptionRow label="Weather" selected={kind === 'Weather'} onPress={() => onSelectKind('Weather')} />
-        <OptionRow
-          label="Time of day"
-          selected={kind === 'TimeOfDay'}
-          onPress={() => onSelectKind('TimeOfDay')}
-        />
-        <OptionRow label="Season" selected={kind === 'Season'} onPress={() => onSelectKind('Season')} isLast />
+        {options.map((option, index) => (
+          <CheckRow
+            key={option}
+            label={option}
+            checked={selected.includes(option)}
+            onToggle={() => onToggle(option)}
+            isLast={index === options.length - 1}
+          />
+        ))}
       </OptionGroup>
-
-      {kind === 'Weather' && (
-        <OptionGroup>
-          {WEATHER_CONDITIONS.map((condition, index) => (
-            <CheckRow
-              key={condition}
-              label={condition}
-              checked={conditions.includes(condition)}
-              onToggle={() => onToggleCondition(condition)}
-              isLast={index === WEATHER_CONDITIONS.length - 1}
-            />
-          ))}
-        </OptionGroup>
-      )}
-
-      {kind === 'TimeOfDay' && (
-        <OptionGroup>
-          {TIMES_OF_DAY.map((time, index) => (
-            <CheckRow
-              key={time}
-              label={time}
-              checked={times.includes(time)}
-              onToggle={() => onToggleTime(time)}
-              isLast={index === TIMES_OF_DAY.length - 1}
-            />
-          ))}
-        </OptionGroup>
-      )}
-
-      {kind === 'Season' && (
-        <OptionGroup>
-          {SEASONS.map((season, index) => (
-            <CheckRow
-              key={season}
-              label={season}
-              checked={seasons.includes(season)}
-              onToggle={() => onToggleSeason(season)}
-              isLast={index === SEASONS.length - 1}
-            />
-          ))}
-        </OptionGroup>
-      )}
 
       {showDueBy && (
         <OptionGroup>

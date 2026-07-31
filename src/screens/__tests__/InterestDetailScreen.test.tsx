@@ -14,7 +14,9 @@ const DIMENSIONS: ConstraintDimension[] = [
   'Supplies',
   'Location',
   'Social',
-  'WeatherSeason',
+  'Weather',
+  'Season',
+  'TimeOfDay',
   'EnergyFocus',
 ];
 
@@ -51,7 +53,9 @@ function makeFullyAnsweredConstraints(): Constraint[] {
     Supplies: { status: 'None' },
     Location: { status: 'Set', value: 'Home' },
     Social: { status: 'Set', value: 'Solo' },
-    WeatherSeason: { status: 'None' },
+    Weather: { status: 'None' },
+    Season: { status: 'None' },
+    TimeOfDay: { status: 'None' },
   });
 }
 

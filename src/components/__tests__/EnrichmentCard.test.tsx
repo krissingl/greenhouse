@@ -292,13 +292,13 @@ describe('EnrichmentCard', () => {
     expect(onForward).not.toHaveBeenCalled();
   });
 
-  it('walks the Weather branch of the decision tree and produces a structured multi-select value', async () => {
+  it('produces a flat multi-select value on the Weather card, with no kind wrapper', async () => {
     const onAnswer = jest.fn();
     const onForward = jest.fn();
     const { getByText } = await render(
       <ThemeProvider>
         <EnrichmentCard
-          axis="WeatherSeason"
+          axis="Weather"
           answer={null}
           onAnswer={onAnswer}
           onBack={jest.fn()}
@@ -306,12 +306,6 @@ describe('EnrichmentCard', () => {
         />
       </ThemeProvider>,
     );
-
-    await act(async () => {
-      fireEvent.press(getByText('Weather'));
-    });
-
-    expect(onForward).not.toHaveBeenCalled();
 
     await act(async () => {
       fireEvent.press(getByText('Sunny'));
@@ -326,18 +320,15 @@ describe('EnrichmentCard', () => {
       fireEvent.press(getByText('Next'));
     });
 
-    expect(onAnswer).toHaveBeenCalledWith({
-      status: 'Set',
-      value: { kind: 'Weather', conditions: ['Sunny', 'Overcast'] },
-    });
+    expect(onAnswer).toHaveBeenCalledWith({ status: 'Set', value: ['Sunny', 'Overcast'] });
     expect(onForward).toHaveBeenCalled();
   });
 
-  it('offers a due-by field only on the Season and TimeOfDay branches, not on Weather', async () => {
-    const { getByText, queryByPlaceholderText } = await render(
+  it('offers each multi-select axis only its own options', async () => {
+    const { getByText, queryByText } = await render(
       <ThemeProvider>
         <EnrichmentCard
-          axis="WeatherSeason"
+          axis="TimeOfDay"
           answer={null}
           onAnswer={jest.fn()}
           onBack={jest.fn()}
@@ -346,25 +337,61 @@ describe('EnrichmentCard', () => {
       </ThemeProvider>,
     );
 
-    await act(async () => {
-      fireEvent.press(getByText('Weather'));
-    });
-    expect(queryByPlaceholderText(/Due by/)).toBeNull();
-
-    await act(async () => {
-      fireEvent.press(getByText('Season'));
-    });
-    expect(queryByPlaceholderText(/Due by/)).toBeTruthy();
+    expect(getByText('Does the time of day matter?')).toBeTruthy();
+    expect(getByText('Night')).toBeTruthy();
+    expect(queryByText('Sunny')).toBeNull();
+    expect(queryByText('Fall')).toBeNull();
   });
 
-  it('captures a due-by date on the Season branch and flushes it via onDueByChange', async () => {
+  it('offers a due-by field on the Season and TimeOfDay cards, not on Weather', async () => {
+    const { queryByPlaceholderText } = await render(
+      <ThemeProvider>
+        <EnrichmentCard
+          axis="Weather"
+          answer={null}
+          onAnswer={jest.fn()}
+          onBack={jest.fn()}
+          onForward={jest.fn()}
+        />
+      </ThemeProvider>,
+    );
+    expect(queryByPlaceholderText(/Due by/)).toBeNull();
+
+    const season = await render(
+      <ThemeProvider>
+        <EnrichmentCard
+          axis="Season"
+          answer={null}
+          onAnswer={jest.fn()}
+          onBack={jest.fn()}
+          onForward={jest.fn()}
+        />
+      </ThemeProvider>,
+    );
+    expect(season.queryByPlaceholderText(/Due by/)).toBeTruthy();
+
+    const timeOfDay = await render(
+      <ThemeProvider>
+        <EnrichmentCard
+          axis="TimeOfDay"
+          answer={null}
+          onAnswer={jest.fn()}
+          onBack={jest.fn()}
+          onForward={jest.fn()}
+        />
+      </ThemeProvider>,
+    );
+    expect(timeOfDay.queryByPlaceholderText(/Due by/)).toBeTruthy();
+  });
+
+  it('captures a due-by date on the Season card and flushes it via onDueByChange', async () => {
     const onAnswer = jest.fn();
     const onDueByChange = jest.fn();
     const onForward = jest.fn();
     const { getByText, getByPlaceholderText } = await render(
       <ThemeProvider>
         <EnrichmentCard
-          axis="WeatherSeason"
+          axis="Season"
           answer={null}
           onAnswer={onAnswer}
           onBack={jest.fn()}
@@ -376,9 +403,6 @@ describe('EnrichmentCard', () => {
     );
 
     await act(async () => {
-      fireEvent.press(getByText('Season'));
-    });
-    await act(async () => {
       fireEvent.press(getByText('Fall'));
     });
     await act(async () => {
@@ -389,12 +413,33 @@ describe('EnrichmentCard', () => {
       fireEvent.press(getByText('Next'));
     });
 
-    expect(onAnswer).toHaveBeenCalledWith({
-      status: 'Set',
-      value: { kind: 'Season', seasons: ['Fall'] },
-    });
+    expect(onAnswer).toHaveBeenCalledWith({ status: 'Set', value: ['Fall'] });
     expect(onDueByChange).toHaveBeenCalledWith('2026-10-31');
     expect(onForward).toHaveBeenCalled();
+  });
+
+  it('restores an existing multi-select answer as pre-checked options', async () => {
+    const onAnswer = jest.fn();
+    const { getByText } = await render(
+      <ThemeProvider>
+        <EnrichmentCard
+          axis="Weather"
+          answer={{ status: 'Set', value: ['Sunny'] }}
+          onAnswer={onAnswer}
+          onBack={jest.fn()}
+          onForward={jest.fn()}
+        />
+      </ThemeProvider>,
+    );
+
+    await act(async () => {
+      fireEvent.press(getByText('Dry'));
+    });
+    await act(async () => {
+      fireEvent.press(getByText('Next'));
+    });
+
+    expect(onAnswer).toHaveBeenCalledWith({ status: 'Set', value: ['Sunny', 'Dry'] });
   });
 
   it('renders a checkbox per supply item, sorting Need it above Have it and re-sorting on toggle', async () => {

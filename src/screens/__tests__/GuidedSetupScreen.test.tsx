@@ -19,7 +19,9 @@ const DIMENSIONS: ConstraintDimension[] = [
   'Supplies',
   'Location',
   'Social',
-  'WeatherSeason',
+  'Weather',
+  'Season',
+  'TimeOfDay',
   'EnergyFocus',
 ];
 
@@ -152,7 +154,9 @@ describe('GuidedSetupScreen', () => {
         Supplies: { status: 'None' },
         Location: { status: 'Set', value: 'Home' },
         Social: { status: 'Set', value: 'Solo' },
-        WeatherSeason: { status: 'None' },
+        Weather: { status: 'None' },
+        Season: { status: 'None' },
+        TimeOfDay: { status: 'None' },
       }),
     );
     jest
@@ -185,6 +189,42 @@ describe('GuidedSetupScreen', () => {
     const { findByText } = await renderScreen(navigation, { interestId: 'interest-1' });
 
     expect(await findByText('Where can you do this?')).toBeTruthy();
+  });
+
+  it('sequential mode: offers Weather, Season and TimeOfDay as three separate cards', async () => {
+    jest.spyOn(interestService, 'get').mockResolvedValue(makeInterest());
+    jest.spyOn(constraintService, 'listForInterest').mockResolvedValue(
+      makeConstraints({
+        Time: { status: 'Set', value: '15-30' },
+        Supplies: { status: 'None' },
+        Location: { status: 'Set', value: 'Home' },
+        Social: { status: 'Set', value: 'Solo' },
+      }),
+    );
+    jest.spyOn(constraintService, 'answer').mockImplementation(async (interestId, dimension) => ({
+      id: `constraint-${dimension}`,
+      interestId,
+      dimension,
+      status: 'Unknown',
+      value: null,
+      createdAt: '2026-07-01T00:00:00.000Z',
+      updatedAt: '2026-07-01T00:00:00.000Z',
+    }));
+    const navigation = { navigate: jest.fn(), replace: jest.fn() };
+
+    const { findByText } = await renderScreen(navigation, { interestId: 'interest-1' });
+
+    expect(await findByText('Does the weather matter?')).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.press(await findByText('Skip'));
+    });
+    expect(await findByText('Is this tied to a season?')).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.press(await findByText('Skip'));
+    });
+    expect(await findByText('Does the time of day matter?')).toBeTruthy();
   });
 
   it('sequential mode: skips Type when typeSkippedAt is already set', async () => {

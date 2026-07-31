@@ -21,7 +21,9 @@ const AXIS_LABELS: Record<EnrichmentAxis, string> = {
   Supplies: 'Supplies',
   Location: 'Location',
   Social: 'Social',
-  WeatherSeason: 'Weather',
+  Weather: 'Weather',
+  Season: 'Season',
+  TimeOfDay: 'Time of day',
 };
 
 function formatDisplayDate(iso: string): string {

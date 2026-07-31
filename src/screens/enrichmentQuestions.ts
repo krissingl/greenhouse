@@ -6,7 +6,6 @@ import type {
   SupplyItem,
   TimeOfDay,
   WeatherCondition,
-  WeatherSeasonConstraintValue,
 } from '../domain/constraint';
 import { displayLabel, type InterestType } from '../domain/interest';
 
@@ -31,8 +30,14 @@ export const COVERED_AXES: EnrichmentAxis[] = [
   'Supplies',
   'Location',
   'Social',
-  'WeatherSeason',
+  'Weather',
+  'Season',
+  'TimeOfDay',
 ];
+
+export type MultiSelectAxis = 'Weather' | 'Season' | 'TimeOfDay';
+
+export type MultiSelectOption = WeatherCondition | Season | TimeOfDay;
 
 export interface ChipOption<V> {
   label: string;
@@ -41,7 +46,7 @@ export interface ChipOption<V> {
 
 export interface ChipQuestionConfig {
   variant: 'chips';
-  axis: Exclude<EnrichmentAxis, 'Type' | 'Supplies' | 'WeatherSeason'>;
+  axis: Exclude<EnrichmentAxis, 'Type' | 'Supplies' | MultiSelectAxis>;
   shortLabel: string;
   prompt: string;
   options: ChipOption<ConstraintValue>[];
@@ -62,15 +67,18 @@ export interface SuppliesQuestionConfig {
   prompt: string;
 }
 
-export interface WeatherSeasonQuestionConfig {
-  variant: 'weather';
-  axis: 'WeatherSeason';
+export interface MultiSelectQuestionConfig {
+  variant: 'multi';
+  axis: MultiSelectAxis;
   shortLabel: string;
   prompt: string;
+  options: MultiSelectOption[];
+  /** Season and TimeOfDay are where a deadline naturally comes up; Weather is not. */
+  offersDueBy: boolean;
 }
 
 export type QuestionConfig =
-  ChipQuestionConfig | TypeQuestionConfig | SuppliesQuestionConfig | WeatherSeasonQuestionConfig;
+  ChipQuestionConfig | TypeQuestionConfig | SuppliesQuestionConfig | MultiSelectQuestionConfig;
 
 export const enrichmentQuestions: Record<EnrichmentAxis, QuestionConfig> = {
   Type: {
@@ -124,11 +132,29 @@ export const enrichmentQuestions: Record<EnrichmentAxis, QuestionConfig> = {
       { label: 'Needs people', value: 'NeedsPeople' },
     ],
   },
-  WeatherSeason: {
-    variant: 'weather',
-    axis: 'WeatherSeason',
+  Weather: {
+    variant: 'multi',
+    axis: 'Weather',
     shortLabel: 'weather',
-    prompt: 'Does weather or time of year matter?',
+    prompt: 'Does the weather matter?',
+    options: WEATHER_CONDITIONS,
+    offersDueBy: false,
+  },
+  Season: {
+    variant: 'multi',
+    axis: 'Season',
+    shortLabel: 'season',
+    prompt: 'Is this tied to a season?',
+    options: SEASONS,
+    offersDueBy: true,
+  },
+  TimeOfDay: {
+    variant: 'multi',
+    axis: 'TimeOfDay',
+    shortLabel: 'time of day',
+    prompt: 'Does the time of day matter?',
+    options: TIMES_OF_DAY,
+    offersDueBy: true,
   },
 };
 
@@ -160,18 +186,9 @@ export function summarizeAnswer(
     return items.length === 1 ? items[0].name : `${items.length} items`;
   }
 
-  if (question.variant === 'weather') {
-    const weatherValue = value as WeatherSeasonConstraintValue | null;
-    if (!weatherValue) {
-      return 'Matters';
-    }
-    if (weatherValue.kind === 'Weather') {
-      return weatherValue.conditions.length > 0 ? weatherValue.conditions.join(', ') : 'Matters';
-    }
-    if (weatherValue.kind === 'TimeOfDay') {
-      return weatherValue.times.length > 0 ? weatherValue.times.join(', ') : 'Matters';
-    }
-    return weatherValue.seasons.length > 0 ? weatherValue.seasons.join(', ') : 'Matters';
+  if (question.variant === 'multi') {
+    const selected = (value as MultiSelectOption[] | null) ?? [];
+    return selected.length > 0 ? selected.join(', ') : 'Matters';
   }
 
   return null;

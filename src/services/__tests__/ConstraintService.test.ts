@@ -38,25 +38,27 @@ describe('ConstraintService', () => {
 
       const result = await service.listForInterest('interest-1');
 
-      expect(result).toHaveLength(6);
+      expect(result).toHaveLength(8);
       expect(result.every((c) => c.status === 'Unknown' && c.value === null)).toBe(true);
       expect(result.map((c) => c.dimension)).toEqual([
         'Time',
         'Supplies',
         'Location',
         'Social',
-        'WeatherSeason',
+        'Weather',
+        'Season',
+        'TimeOfDay',
         'EnergyFocus',
       ]);
     });
 
-    it('returns exactly six entries, using stored rows where present', async () => {
+    it('returns exactly eight entries, using stored rows where present', async () => {
       const stored = makeConstraint({ dimension: 'Time', status: 'Set', value: '15-30' });
       repository.findForInterest.mockResolvedValue([stored]);
 
       const result = await service.listForInterest('interest-1');
 
-      expect(result).toHaveLength(6);
+      expect(result).toHaveLength(8);
       const timeEntry = result.find((c) => c.dimension === 'Time');
       expect(timeEntry).toEqual(stored);
       const locationEntry = result.find((c) => c.dimension === 'Location');

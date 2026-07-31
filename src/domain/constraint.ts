@@ -7,7 +7,9 @@ export type ConstraintDimension =
   | 'Supplies'
   | 'Location'
   | 'Social'
-  | 'WeatherSeason'
+  | 'Weather'
+  | 'Season'
+  | 'TimeOfDay'
   | 'EnergyFocus';
 
 export type ConstraintStatus = 'Unknown' | 'None' | 'Set';
@@ -29,11 +31,6 @@ export type TimeOfDay = 'Morning' | 'Afternoon' | 'Evening' | 'Night';
 
 export type Season = 'Spring' | 'Summer' | 'Fall' | 'Winter';
 
-export type WeatherSeasonConstraintValue =
-  | { kind: 'Weather'; conditions: WeatherCondition[] }
-  | { kind: 'TimeOfDay'; times: TimeOfDay[] }
-  | { kind: 'Season'; seasons: Season[] };
-
 export type EnergyFocusConstraintValue = 'Low' | 'Medium' | 'High';
 
 export type ConstraintValue =
@@ -41,7 +38,9 @@ export type ConstraintValue =
   | SupplyItem[]
   | LocationConstraintValue
   | SocialConstraintValue
-  | WeatherSeasonConstraintValue
+  | WeatherCondition[]
+  | Season[]
+  | TimeOfDay[]
   | EnergyFocusConstraintValue;
 
 export interface Constraint {

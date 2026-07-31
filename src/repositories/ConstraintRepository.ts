@@ -20,45 +20,13 @@ interface ConstraintRow {
   updated_at: string;
 }
 
-/**
- * Dev databases may still hold WeatherSeason rows in the pre-#41 shape
- * (`{ matters: true, note?: string }`), which has no `kind` discriminator and
- * cannot be losslessly mapped onto the new Weather/TimeOfDay/Season branches —
- * the old note was freeform prose. Rather than crash, such rows decode as
- * not-yet-answered; they are re-written in the new shape the next time the
- * user answers the WeatherSeason question.
- */
-function decodeConstraintValue(
-  dimension: ConstraintDimension,
-  raw: unknown,
-): { status: ConstraintStatus; value: ConstraintValue | null } | null {
-  if (dimension !== 'WeatherSeason') {
-    return null;
-  }
-  const isLegacyShape =
-    raw !== null &&
-    typeof raw === 'object' &&
-    !('kind' in (raw as Record<string, unknown>));
-  if (isLegacyShape) {
-    return { status: 'Unknown', value: null };
-  }
-  return null;
-}
-
 function rowToConstraint(row: ConstraintRow): Constraint {
-  const dimension = row.dimension as ConstraintDimension;
-  const status = row.status as ConstraintStatus;
-  const parsedValue = row.value !== null ? (JSON.parse(row.value) as ConstraintValue) : null;
-
-  const legacyDecoded =
-    parsedValue !== null ? decodeConstraintValue(dimension, parsedValue) : null;
-
   return {
     id: row.id,
     interestId: row.interest_id,
-    dimension,
-    status: legacyDecoded ? legacyDecoded.status : status,
-    value: legacyDecoded ? legacyDecoded.value : parsedValue,
+    dimension: row.dimension as ConstraintDimension,
+    status: row.status as ConstraintStatus,
+    value: row.value !== null ? (JSON.parse(row.value) as ConstraintValue) : null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

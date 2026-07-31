@@ -84,45 +84,60 @@ describe('ConstraintRepository', () => {
     });
   });
 
-  describe('legacy WeatherSeason decode tolerance', () => {
-    it('decodes a pre-#41 { matters, note? } row as Unknown rather than crashing', async () => {
-      const interest = await interestRepository.insert({ title: 'Learn violin' });
-      const now = new Date().toISOString();
-
-      getDatabase().runSync(
-        `INSERT INTO constraints (id, interest_id, dimension, status, value, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?);`,
-        [
-          'legacy-id',
-          interest.id,
-          'WeatherSeason',
-          'Set',
-          JSON.stringify({ matters: true, note: 'This is a fall craft' }),
-          now,
-          now,
-        ],
-      );
-
-      const [stored] = await repository.findForInterest(interest.id);
-      expect(stored.status).toBe('Unknown');
-      expect(stored.value).toBeNull();
-    });
-
-    it('decodes a current { kind, ... } WeatherSeason row unchanged', async () => {
-      const interest = await interestRepository.insert({ title: 'Stargazing' });
+  describe('the split weather/season/time-of-day dimensions', () => {
+    it('round-trips each flat multi-select payload on its own dimension', async () => {
+      const interest = await interestRepository.insert({ title: 'Night sky photography' });
 
       await repository.replaceForInterest(interest.id, [
         makeConstraint({
           interestId: interest.id,
-          dimension: 'WeatherSeason',
+          dimension: 'Weather',
           status: 'Set',
-          value: { kind: 'TimeOfDay', times: ['Night'] },
+          value: ['Sunny', 'Overcast'],
+        }),
+        makeConstraint({
+          interestId: interest.id,
+          dimension: 'Season',
+          status: 'Set',
+          value: ['Fall'],
+        }),
+        makeConstraint({
+          interestId: interest.id,
+          dimension: 'TimeOfDay',
+          status: 'Set',
+          value: ['Night'],
         }),
       ]);
 
-      const [stored] = await repository.findForInterest(interest.id);
-      expect(stored.status).toBe('Set');
-      expect(stored.value).toEqual({ kind: 'TimeOfDay', times: ['Night'] });
+      const stored = await repository.findForInterest(interest.id);
+      expect(stored.find((c) => c.dimension === 'Weather')?.value).toEqual(['Sunny', 'Overcast']);
+      expect(stored.find((c) => c.dimension === 'Season')?.value).toEqual(['Fall']);
+      expect(stored.find((c) => c.dimension === 'TimeOfDay')?.value).toEqual(['Night']);
+    });
+
+    it('lets weather and time-of-day co-exist as independent answers', async () => {
+      const interest = await interestRepository.insert({ title: 'Night sky photography' });
+
+      await repository.replaceForInterest(interest.id, [
+        makeConstraint({
+          interestId: interest.id,
+          dimension: 'Weather',
+          status: 'Set',
+          value: ['Dry'],
+        }),
+      ]);
+      await repository.replaceForInterest(interest.id, [
+        makeConstraint({
+          interestId: interest.id,
+          dimension: 'TimeOfDay',
+          status: 'Set',
+          value: ['Night'],
+        }),
+      ]);
+
+      const stored = await repository.findForInterest(interest.id);
+      expect(stored.find((c) => c.dimension === 'Weather')?.value).toEqual(['Dry']);
+      expect(stored.find((c) => c.dimension === 'TimeOfDay')?.value).toEqual(['Night']);
     });
   });
 

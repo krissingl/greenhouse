@@ -13,7 +13,9 @@ const ALL_DIMENSIONS: ConstraintDimension[] = [
   'Supplies',
   'Location',
   'Social',
-  'WeatherSeason',
+  'Weather',
+  'Season',
+  'TimeOfDay',
   'EnergyFocus',
 ];
 
