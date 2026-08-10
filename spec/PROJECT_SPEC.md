@@ -108,10 +108,9 @@ it at the natural moment. Interests can be re-opened, and Steps added after a
 **Due date** _(added 2026-07-28, Phase 2)_ — an Interest may carry an optional
 `dueBy` date ("done before Halloween", "before the Renaissance Faire"). It is captured
 contextually inside the guided flow — offered as a follow-up on the `Season` and
-`TimeOfDay` branches of `WeatherSeason`, where a deadline naturally comes up — but
-**stored once, on the Interest**, never inside a constraint value. Two branches can ask
-for it, so one canonical home prevents conflicting dates and lets the engine query it
-without unpacking JSON.
+`TimeOfDay` cards, where a deadline naturally comes up — but **stored once, on the
+Interest**, never inside a constraint value. Two cards can ask for it, so one canonical
+home prevents conflicting dates and lets the engine query it without unpacking JSON.
 
 `dueBy` **affects ordering only, and never nags.** As the date approaches, the interest
 climbs the recommendations; it never produces a notification, badge, reminder, or any
@@ -120,22 +119,25 @@ does not scold.
 
 ### Constraint
 
-A condition affecting whether an Interest can be pursued, across eight
-conceptual axes: time, supplies, location, social, weather, seasonal, energy,
-focus. Constraints are captured to reduce future activation energy and drive
-recommendation matching.
+A condition affecting whether an Interest can be pursued, across nine
+conceptual axes: session length, supplies, location, social, weather, season,
+time of day, energy, focus. Constraints are captured to reduce future activation
+energy and drive recommendation matching.
 
-**Storage shape** _(resolved 2026-07-19, Phase 2)_ — the eight conceptual axes
-are stored as six `ConstraintDimension` values: `Time`, `Supplies`, `Location`,
-`Social`, `WeatherSeason` (merges weather + seasonal), and `EnergyFocus`
-(merges energy + focus) — matching the design-intent doc's six-question v1 set
-one-for-one. One row per `(interest, dimension)`, enforced by a `UNIQUE`
+**Storage shape** _(resolved 2026-07-19; revised 2026-07-30, Phase 2 UAT)_ — the nine
+conceptual axes are stored as eight `ConstraintDimension` values: `Time`, `Supplies`,
+`Location`, `Social`, `Weather`, `Season`, `TimeOfDay`, and `EnergyFocus` (merges
+energy + focus). One row per `(interest, dimension)`, enforced by a `UNIQUE`
 constraint. `ConstraintStatus` is `Unknown | None | Set`, keeping "not yet
 answered" and "explicitly doesn't apply" stored distinctly per the
 Recommendation Engine's requirement. `value` is JSON-encoded per dimension, and
 constraint rows are removed via `ON DELETE CASCADE` when the parent Interest is
 deleted. `EnergyFocus` is a valid, stored dimension from Phase 2 onward but has
 no question card until a later phase (see Feature Roadmap).
+
+`Time` (how long one session takes) and `TimeOfDay` (when in the day it is possible)
+are **different questions and must never share a name** — the distinction survives from
+the shape this section replaces.
 
 **Why the questionnaire exists** — it is **not** an attempt to understand the user's
 task. It collects user-defined data so that (1) the user can read their interest back
@@ -145,21 +147,34 @@ Free-text answers fail both purposes at once — they are neither easy to read b
 glance nor usable by the engine — so prose belongs in the journal (see
 [Note](#note-the-interests-journal)), never in a constraint value.
 
-**`WeatherSeason` answer shape** _(revised 2026-07-28, Phase 2)_ — a `Set` answer is a
-discriminated union over what actually matters, replacing the original free-text note:
+**`Weather`, `Season`, and `TimeOfDay` answer shapes** _(split out 2026-07-30, Phase 2
+UAT)_ — three independent dimensions, each a flat multi-select. No `kind`
+discriminator: the dimension *is* the discriminator.
 
-- `{ kind: 'Weather', conditions: WeatherCondition[] }` — multi-select (e.g. sunny,
-  overcast, dry). "Only in good light, but overcast is fine."
-- `{ kind: 'TimeOfDay', times: TimeOfDay[] }` — multi-select (morning, afternoon,
-  evening, night). "Stargazing only works at night."
-- `{ kind: 'Season', seasons: Season[] }` — multi-select (spring, summer, fall,
-  winter). "This is a fall craft."
+- `Weather` → `WeatherCondition[]` — e.g. sunny, overcast, dry. "Only in good light,
+  but overcast is fine."
+- `Season` → `Season[]` — spring, summer, fall, winter. "This is a fall craft."
+- `TimeOfDay` → `TimeOfDay[]` — morning, afternoon, evening, night. "Stargazing only
+  works at night."
 
-This stays **one dimension with a branching value** rather than three new dimensions:
-no migration, no `CHECK` constraint change, and the covered-axis flow stays six cards.
-It also keeps `TimeOfDay` (time of day) from colliding with the separate `Time`
-dimension (how long a session takes) — they are different questions and must never
-share a name.
+**Why three dimensions, not one branching value** — these axes **co-occur**. An interest
+can be both weather-dependent and time-of-day-dependent ("night sky photography needs a
+clear night"), and a single branching value forces a false either/or that silently
+discards one real requirement. This reverses the 2026-07-28 "one dimension with a
+branching value" decision, which optimised for avoiding a migration at the cost of
+representing the domain incorrectly. Correctness wins; the migration is paid once.
+
+**Migration** — splitting the stored dimension requires a migration that widens the
+`dimension` `CHECK` constraint (a SQLite table rebuild — create, copy, drop, rename) and
+rewrites existing `WeatherSeason` rows: a row whose value carries `kind: 'Weather' |
+'Season' | 'TimeOfDay'` becomes a row on the matching new dimension with the `kind`
+wrapper stripped; a legacy `{ matters, note? }` row (already decoded as `Unknown` since
+Phase 2 Batch A) carries no queryable data and is dropped rather than guessed at. No
+`WeatherSeason` value survives in the schema afterwards.
+
+The covered-axis question flow therefore becomes **eight cards** — `Type`, `Time`,
+`Supplies`, `Location`, `Social`, `Weather`, `Season`, `TimeOfDay` — with `EnergyFocus`
+still deliberately uncarded.
 
 ### Note _(the interest's journal)_
 
@@ -547,11 +562,22 @@ design tokens. Read it before expanding Phases 0, 2, 3, and 5–7 into tickets.
   is blocked by a field we failed to imagine. Notes carry no semantics — the engine
   never reads them. The questionnaire is not a notes surface: it stays fast and
   structured, and prose lives in the journal.
+- **`Weather`, `Season`, and `TimeOfDay` are three dimensions, not one** _(2026-07-30)_
+  — raised during Phase 2 UAT. These axes co-occur: an interest can be weather-dependent
+  *and* time-of-day-dependent at once, and the branching single value forced a false
+  either/or that discarded a real requirement. Splits `WeatherSeason` into three stored
+  `ConstraintDimension` values with flat multi-select payloads, taking the `CHECK`-widening
+  migration that the 2026-07-28 decision below was written to avoid. Reverses that
+  decision's structure while keeping its substance (structured answers, and `TimeOfDay`
+  never colliding with `Time`). Question flow goes from six cards to eight. See
+  [Constraint](#constraint).
 - **Constraint answers must be structured, never free text** _(2026-07-28)_ — the
   original `WeatherSeason` shape (`{ matters, note? }`) captured prose the engine could
   not use and the user could not scan. Replaced with a discriminated union over
   `Weather` / `TimeOfDay` / `Season`. The questionnaire exists to produce queryable data
-  and a readable one-place reference — free text serves neither.
+  and a readable one-place reference — free text serves neither. _(The union's **shape**
+  was superseded 2026-07-30 — see the entry above. The structured-not-prose principle
+  stands.)_
 - **`dueBy` orders, never pushes** _(2026-07-28)_ — an optional due date on Interest,
   captured inside the `Season`/`TimeOfDay` branches but stored once on the Interest.
   Proximity raises an interest within the feasible set. This does not reverse the
@@ -585,14 +611,17 @@ design tokens. Read it before expanding Phases 0, 2, 3, and 5–7 into tickets.
   `ConstraintService` as thin orchestration over it. See
   [API Contracts](#api-contracts-internal-service--repository-interfaces).
 - **Constraint storage shape resolved: eight conceptual axes, six stored
-  dimensions** _(2026-07-19)_ — Phase 2 stores `ConstraintDimension` as six
+  dimensions** _(2026-07-19; dimension list superseded 2026-07-30)_ — Phase 2 stores
+  `ConstraintDimension` as six
   values (`Time`, `Supplies`, `Location`, `Social`, `WeatherSeason`,
   `EnergyFocus`), merging weather+seasonal and energy+focus to match the
   design-intent doc's six-question v1 set. One row per (interest, dimension)
   with a `UNIQUE` constraint, `ConstraintStatus` of `Unknown | None | Set`, a
   JSON-encoded value, and `ON DELETE CASCADE` from the parent interest.
   Resolves the former Open Question "Constraint storage shape." See
-  [Constraint](#constraint).
+  [Constraint](#constraint). _(`WeatherSeason` was split into `Weather`, `Season`, and
+  `TimeOfDay` on 2026-07-30, making eight stored dimensions; the row/status/value/cascade
+  mechanics here are unchanged.)_
 - **`EnergyFocus` stored but not carded in v1** _(2026-07-19)_ — `EnergyFocus`
   is a valid `ConstraintDimension` (and CHECK-constrained column value) from
   Phase 2 onward, so no later migration is needed, but Phase 2 builds no

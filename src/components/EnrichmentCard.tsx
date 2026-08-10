@@ -22,14 +22,9 @@ interface EnrichmentCardProps {
   onAnswer: (answer: EnrichmentAnswer) => void;
   onBack: () => void;
   onForward: () => void;
-  /** The Interest's current due date, offered as a follow-up on the Season and TimeOfDay cards. */
   dueBy?: string | null;
   onDueByChange?: (dueBy: string | null) => void;
 }
-
-// A multi-select card is bound to exactly one of Weather/Season/TimeOfDay, so its
-// selections are homogeneous — but TypeScript only sees the union element type,
-// which is not assignable to any single one of ConstraintValue's array members.
 function asMultiSelectValue(selections: MultiSelectOption[]): ConstraintValue {
   return selections as ConstraintValue;
 }
@@ -58,11 +53,6 @@ export default function EnrichmentCard({
   const [selections, setSelections] = useState<MultiSelectOption[]>(initialSelections);
   const [dueByDraft, setDueByDraft] = useState<string>(initialDueBy);
 
-  // Every exit from this card (Back/Forward, Close, Home, hardware back, or the
-  // screen navigating away out from under it) unmounts this component, so an
-  // unmount-time flush is the one choke point that reliably covers all of them —
-  // draft-holding axes (Supplies/Weather) would otherwise silently lose unsaved
-  // edits on any exit path that isn't the explicit Back/Forward handlers.
   const itemsRef = useRef(items);
   const selectionsRef = useRef(selections);
   const dueByDraftRef = useRef(dueByDraft);

@@ -3,11 +3,6 @@ import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } fro
 
 import { useTheme, type Theme } from '../theme';
 
-/**
- * Shared "bordered group of hairline-divided rows" visual language used by the
- * enrichment questionnaire (EnrichmentCard) and the Interest Detail answer row —
- * the de-pilled replacement for the earlier rounded chip styling.
- */
 export function OptionGroup({ children }: { children: ReactNode }): ReactElement {
   const theme = useTheme();
 
