@@ -7,18 +7,9 @@ import type { Note, NoteId } from '../domain/note';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { noteService } from '../services/NoteService';
 import { useTheme } from '../theme';
+import { formatDisplayDate } from '../utils/formatDisplayDate';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'NoteJournal'>;
-
-function formatDisplayDate(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  });
-}
 
 export default function NoteJournalScreen({ route }: Props): ReactElement {
   const theme = useTheme();

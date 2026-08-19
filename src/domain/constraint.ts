@@ -69,7 +69,9 @@ export function findConstraint<D extends ConstraintDimension>(
   return constraints.find((c): c is Constraint<D> => c.dimension === dimension);
 }
 
-export function isValidConstraintAnswer(
+// Not exported — this is only ever an internal step of assertValidConstraintAnswer below, which
+// is what every other module (and ticket #21's AC) actually depends on.
+function isValidConstraintAnswer(
   status: ConstraintStatus,
   value: ConstraintValue | null | undefined,
 ): boolean {

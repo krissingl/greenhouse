@@ -13,6 +13,7 @@ import { COVERED_AXES, summarizeAnswer, type EnrichmentAxis } from './enrichment
 import { constraintService } from '../services/ConstraintService';
 import { interestService } from '../services/InterestService';
 import { useTheme, type Theme } from '../theme';
+import { formatDisplayDate } from '../utils/formatDisplayDate';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'InterestDetail'>;
 
@@ -26,16 +27,6 @@ const AXIS_LABELS: Record<EnrichmentAxis, string> = {
   Season: 'Season',
   TimeOfDay: 'Time of day',
 };
-
-function formatDisplayDate(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  });
-}
 
 function formatDueDate(raw: string): string {
   const parsed = new Date(raw);
