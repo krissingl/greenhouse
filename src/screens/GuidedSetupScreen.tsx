@@ -3,7 +3,7 @@ import { useEffect, useState, type ReactElement } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import EnrichmentCard, { type EnrichmentAnswer } from '../components/EnrichmentCard';
-import type { Constraint, ConstraintValue } from '../domain/constraint';
+import type { Constraint, ConstraintValueByDimension } from '../domain/constraint';
 import type { Interest, InterestType } from '../domain/interest';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { COVERED_AXES, type EnrichmentAxis } from '../screens/enrichmentQuestions';
@@ -12,6 +12,29 @@ import { interestService } from '../services/InterestService';
 import { useTheme } from '../theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'GuidedSetup'>;
+
+// The dimensions this screen actually answers through ConstraintService — every covered axis
+// except 'Type', which is answered through InterestService instead.
+type CoveredDimension = Exclude<EnrichmentAxis, 'Type'>;
+type CoveredConstraintValue = ConstraintValueByDimension[CoveredDimension];
+
+// handleAnswer is a single dispatcher over every axis, so EnrichmentAnswer's declared value type
+// (ConstraintValue | InterestType) can't be correlated with the specific `axis` argument by the
+// type system alone. These guards make that correlation explicit at the one call site that needs
+// it, instead of asserting it away with a cast.
+function isTypeAnswer(
+  axis: EnrichmentAxis,
+  answer: EnrichmentAnswer,
+): answer is { status: EnrichmentAnswer['status']; value?: InterestType } {
+  return axis === 'Type';
+}
+
+function isConstraintAnswer(
+  axis: EnrichmentAxis,
+  answer: EnrichmentAnswer,
+): answer is { status: EnrichmentAnswer['status']; value?: CoveredConstraintValue } {
+  return axis !== 'Type';
+}
 
 function isAxisUnanswered(
   axis: EnrichmentAxis,
@@ -106,10 +129,10 @@ export default function GuidedSetupScreen({ route, navigation }: Props): ReactEl
     try {
       setActionError(null);
 
-      if (axis === 'Type') {
+      if (isTypeAnswer(axis, answer)) {
         if (answer.status === 'Set') {
           const updated = await interestService.update(interestId, {
-            type: answer.value as InterestType,
+            type: answer.value ?? null,
             typeSkippedAt: null,
           });
           setInterest(updated);
@@ -117,10 +140,10 @@ export default function GuidedSetupScreen({ route, navigation }: Props): ReactEl
           const updated = await interestService.skipType(interestId);
           setInterest(updated);
         }
-      } else {
+      } else if (axis !== 'Type' && isConstraintAnswer(axis, answer)) {
         const updatedConstraint = await constraintService.answer(interestId, axis, {
           status: answer.status,
-          value: answer.value as ConstraintValue | undefined,
+          value: answer.value,
         });
         setConstraints((prev) =>
           prev ? prev.map((c) => (c.dimension === axis ? updatedConstraint : c)) : prev,

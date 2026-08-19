@@ -8,6 +8,7 @@ import {
   enrichmentQuestions,
   type EnrichmentAxis,
   type MultiSelectOption,
+  type QuestionConfig,
 } from '../screens/enrichmentQuestions';
 import { useTheme } from '../theme';
 
@@ -25,6 +26,35 @@ interface EnrichmentCardProps {
   dueBy?: string | null;
   onDueByChange?: (dueBy: string | null) => void;
 }
+
+type QuestionVariant = QuestionConfig['variant'];
+
+// EnrichmentAnswer.value is a flat ConstraintValue | InterestType union because one EnrichmentCard
+// instance serves every axis generically; only the sibling `question.variant` (itself derived from
+// the axis prop) says which shape a given answer's value actually is. This guard centralizes that
+// one correlated-but-untyped assumption once, instead of asserting it again at each read site (see
+// below for why the 'multi' variant can't use the same approach).
+function isSuppliesAnswerValue(
+  variant: QuestionVariant,
+  value: EnrichmentAnswer['value'],
+): value is SupplyItem[] | undefined {
+  return variant === 'supplies';
+}
+
+// Weather/Season/TimeOfDay each store a homogeneous array of their own option type
+// (WeatherCondition[] | Season[] | TimeOfDay[] in ConstraintValue), but this component's local
+// `selections`/multi-select answer state is generically typed MultiSelectOption[] — the *union*
+// of all three option types — since one EnrichmentCard instance is reused for whichever of the
+// three axes it currently renders. A mixed-element-type array is not structurally assignable to a
+// union of homogeneous-element-type arrays (TypeScript can't rule out `selections` holding a
+// mix), and there is no runtime check that would prove otherwise without inspecting every
+// element — so unlike the guard above (which centralizes a real, checkable correlation), these
+// two casts trust an invariant the type system cannot check: that enrichmentQuestions.ts never
+// pairs a MultiSelectAxis's rendered options with another axis's option type.
+function asMultiSelectAnswerValue(value: EnrichmentAnswer['value']): MultiSelectOption[] | undefined {
+  return value as MultiSelectOption[] | undefined;
+}
+
 function asMultiSelectValue(selections: MultiSelectOption[]): ConstraintValue {
   return selections as ConstraintValue;
 }
@@ -42,10 +72,14 @@ export default function EnrichmentCard({
   const question = enrichmentQuestions[axis];
 
   const initialItems =
-    question.variant === 'supplies' && answer?.status === 'Set' ? (answer.value as SupplyItem[]) : [];
+    question.variant === 'supplies' &&
+    answer?.status === 'Set' &&
+    isSuppliesAnswerValue(question.variant, answer.value)
+      ? (answer.value ?? [])
+      : [];
   const initialSelections =
     question.variant === 'multi' && answer?.status === 'Set'
-      ? (answer.value as MultiSelectOption[])
+      ? (asMultiSelectAnswerValue(answer.value) ?? [])
       : [];
   const initialDueBy = dueBy ?? '';
 

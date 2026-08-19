@@ -172,6 +172,28 @@ export const enrichmentQuestions: Record<EnrichmentAxis, QuestionConfig> = {
   },
 };
 
+// summarizeAnswer is a single generic dispatcher over every axis, so `value`'s declared type
+// (the flat ConstraintValue | InterestType union) can't be correlated with `question.variant` by
+// the type system alone — this guard makes that correlation explicit and checkable for the
+// 'supplies' branch below (see asMultiSelectSummaryValue for why 'multi' can't use the same
+// approach).
+function isSuppliesSummaryValue(
+  variant: QuestionConfig['variant'],
+  value: ConstraintValue | InterestType | null | undefined,
+): value is SupplyItem[] | null | undefined {
+  return variant === 'supplies';
+}
+
+// Weather/Season/TimeOfDay each store a homogeneous array of their own option type, but a plain
+// ConstraintValue | InterestType value can't be narrowed to MultiSelectOption[] via a type guard —
+// see the matching comment in EnrichmentCard.tsx for why (a mixed-element-type array isn't
+// structurally assignable to a union of homogeneous-element-type arrays).
+function asMultiSelectSummaryValue(
+  value: ConstraintValue | InterestType | null | undefined,
+): MultiSelectOption[] | null | undefined {
+  return value as MultiSelectOption[] | null | undefined;
+}
+
 export function summarizeAnswer(
   axis: EnrichmentAxis,
   status: ConstraintStatus,
@@ -192,8 +214,8 @@ export function summarizeAnswer(
     return match?.label ?? null;
   }
 
-  if (question.variant === 'supplies') {
-    const items = (value as SupplyItem[] | null) ?? [];
+  if (question.variant === 'supplies' && isSuppliesSummaryValue(question.variant, value)) {
+    const items = value ?? [];
     if (items.length === 0) {
       return 'No supplies needed';
     }
@@ -201,7 +223,7 @@ export function summarizeAnswer(
   }
 
   if (question.variant === 'multi') {
-    const selected = (value as MultiSelectOption[] | null) ?? [];
+    const selected = asMultiSelectSummaryValue(value) ?? [];
     return selected.length > 0 ? selected.join(', ') : 'Matters';
   }
 

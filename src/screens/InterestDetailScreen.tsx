@@ -6,7 +6,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import InterestStateIcon from '../components/InterestStateIcon';
 import { CheckRow, GroupRow, OptionGroup } from '../components/OptionGroup';
-import type { Constraint, SupplyItem } from '../domain/constraint';
+import { findConstraint, type Constraint, type SupplyItem } from '../domain/constraint';
 import { displayLabel, type Interest } from '../domain/interest';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { COVERED_AXES, summarizeAnswer, type EnrichmentAxis } from './enrichmentQuestions';
@@ -135,7 +135,7 @@ function SuppliesRow({
   isLast,
   theme,
 }: {
-  constraint: Constraint | undefined;
+  constraint: Constraint<'Supplies'> | undefined;
   expanded: boolean;
   onToggleExpand: () => void;
   onToggleItem: (index: number) => void;
@@ -169,7 +169,7 @@ function SuppliesRow({
     );
   }
 
-  const items = (constraint.value as SupplyItem[] | null) ?? [];
+  const items = constraint.value ?? [];
   const summary = suppliesSummary(items);
 
   return (
@@ -304,12 +304,12 @@ export default function InterestDetailScreen({ route, navigation }: Props): Reac
   };
 
   const handleToggleSupply = async (index: number) => {
-    const supplies = constraints.find((c) => c.dimension === 'Supplies');
+    const supplies = findConstraint(constraints, 'Supplies');
     if (!supplies || supplies.status !== 'Set') {
       return;
     }
 
-    const items = (supplies.value as SupplyItem[] | null) ?? [];
+    const items = supplies.value ?? [];
     const nextItems = items.map((item, i) => (i === index ? { ...item, have: !item.have } : item));
     const previous = constraints;
 
@@ -406,7 +406,7 @@ export default function InterestDetailScreen({ route, navigation }: Props): Reac
               return (
                 <SuppliesRow
                   key={axis}
-                  constraint={constraints.find((c) => c.dimension === 'Supplies')}
+                  constraint={findConstraint(constraints, 'Supplies')}
                   expanded={suppliesExpanded}
                   onToggleExpand={() => setSuppliesExpanded((prev) => !prev)}
                   onToggleItem={handleToggleSupply}

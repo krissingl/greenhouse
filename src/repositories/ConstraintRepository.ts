@@ -26,6 +26,10 @@ function rowToConstraint(row: ConstraintRow): Constraint {
     interestId: row.interest_id,
     dimension: row.dimension as ConstraintDimension,
     status: row.status as ConstraintStatus,
+    // JSON.parse erases to `any`/`unknown` regardless of the column's dimension, so this cast
+    // is the JSON deserialization boundary itself — the one place a dimension-typed Constraint
+    // can't be produced without trusting the stored shape. Every other ConstraintValue cast in
+    // this codebase is a call site that already knows its dimension at compile time.
     value: row.value !== null ? (JSON.parse(row.value) as ConstraintValue) : null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,

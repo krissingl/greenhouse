@@ -1,9 +1,9 @@
-import { assertValidConstraintAnswer } from '../domain/constraint';
+import { assertValidConstraintAnswer, findConstraint } from '../domain/constraint';
 import type {
   Constraint,
   ConstraintDimension,
   ConstraintStatus,
-  ConstraintValue,
+  ConstraintValueByDimension,
 } from '../domain/constraint';
 import type { InterestId } from '../domain/interest';
 import { ConstraintRepository } from '../repositories/ConstraintRepository';
@@ -43,15 +43,15 @@ export class ConstraintService {
     );
   }
 
-  async answer(
+  async answer<D extends ConstraintDimension>(
     interestId: InterestId,
-    dimension: ConstraintDimension,
-    input: { status: ConstraintStatus; value?: ConstraintValue },
-  ): Promise<Constraint> {
+    dimension: D,
+    input: { status: ConstraintStatus; value?: ConstraintValueByDimension[D] },
+  ): Promise<Constraint<D>> {
     assertValidConstraintAnswer(input.status, input.value);
 
     const now = new Date().toISOString();
-    const constraint: Constraint = {
+    const constraint: Constraint<D> = {
       id: '',
       interestId,
       dimension,
@@ -64,7 +64,7 @@ export class ConstraintService {
     await this.repository.replaceForInterest(interestId, [constraint]);
 
     const stored = await this.repository.findForInterest(interestId);
-    return stored.find((c) => c.dimension === dimension) ?? constraint;
+    return findConstraint(stored, dimension) ?? constraint;
   }
 
   async needsEnrichment(

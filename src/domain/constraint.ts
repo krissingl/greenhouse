@@ -33,24 +33,40 @@ export type Season = 'Spring' | 'Summer' | 'Fall' | 'Winter';
 
 export type EnergyFocusConstraintValue = 'Low' | 'Medium' | 'High';
 
-export type ConstraintValue =
-  | TimeConstraintValue
-  | SupplyItem[]
-  | LocationConstraintValue
-  | SocialConstraintValue
-  | WeatherCondition[]
-  | Season[]
-  | TimeOfDay[]
-  | EnergyFocusConstraintValue;
+// Maps each ConstraintDimension to the shape its value takes once answered. Constraint<D> and
+// the flat ConstraintValue union are both derived from this map, so a dimension's value shape
+// is declared exactly once.
+export interface ConstraintValueByDimension {
+  Time: TimeConstraintValue;
+  Supplies: SupplyItem[];
+  Location: LocationConstraintValue;
+  Social: SocialConstraintValue;
+  Weather: WeatherCondition[];
+  Season: Season[];
+  TimeOfDay: TimeOfDay[];
+  EnergyFocus: EnergyFocusConstraintValue;
+}
 
-export interface Constraint {
+export type ConstraintValue = ConstraintValueByDimension[ConstraintDimension];
+
+export interface Constraint<D extends ConstraintDimension = ConstraintDimension> {
   id: ConstraintId;
   interestId: InterestId;
-  dimension: ConstraintDimension;
+  dimension: D;
   status: ConstraintStatus;
-  value: ConstraintValue | null;
+  value: ConstraintValueByDimension[D] | null;
   createdAt: string;
   updatedAt: string;
+}
+
+// Narrows a Constraint[] to the row for one dimension, if present, so `value` comes back typed
+// to that dimension's own shape (e.g. SupplyItem[] for 'Supplies') instead of the flat
+// ConstraintValue union — call sites that know which dimension they want no longer need a cast.
+export function findConstraint<D extends ConstraintDimension>(
+  constraints: Constraint[],
+  dimension: D,
+): Constraint<D> | undefined {
+  return constraints.find((c): c is Constraint<D> => c.dimension === dimension);
 }
 
 export function isValidConstraintAnswer(
