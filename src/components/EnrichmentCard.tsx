@@ -103,27 +103,34 @@ export default function EnrichmentCard({
 
   const offersDueBy = question.variant === 'multi' && question.offersDueBy;
 
+  // The single save path for this card's draft state (supply items / multi-select options / a
+  // due-by date). Always reads from the refs above rather than the state variables directly, so
+  // this same function is safe to call both from the unmount-cleanup effect below (which must
+  // read whatever was last committed, however stale its own closure is) and from the explicit
+  // Back/Forward handlers (where the refs are already in sync with the latest render by the time
+  // a user can press a button). One implementation, two call sites — see the flagged decision on
+  // ticket #22 for why an unmount flush exists at all.
+  const flushDraft = () => {
+    if (question.variant === 'supplies') {
+      const validItems = itemsRef.current.filter((item) => item.name.trim() !== '');
+      if (validItems.length > 0) {
+        onAnswerRef.current({ status: 'Set', value: validItems });
+      }
+    } else if (question.variant === 'multi') {
+      if (selectionsRef.current.length > 0) {
+        onAnswerRef.current({ status: 'Set', value: asMultiSelectValue(selectionsRef.current) });
+      }
+      if (offersDueBy && onDueByChangeRef.current && dueByDraftRef.current !== initialDueBy) {
+        onDueByChangeRef.current(
+          dueByDraftRef.current.trim().length > 0 ? dueByDraftRef.current.trim() : null,
+        );
+      }
+    }
+  };
+
   useEffect(() => {
     return () => {
-      if (question.variant === 'supplies') {
-        const validItems = itemsRef.current.filter((item) => item.name.trim() !== '');
-        if (validItems.length > 0) {
-          onAnswerRef.current({ status: 'Set', value: validItems });
-        }
-      } else if (question.variant === 'multi') {
-        if (selectionsRef.current.length > 0) {
-          onAnswerRef.current({ status: 'Set', value: asMultiSelectValue(selectionsRef.current) });
-        }
-        if (
-          offersDueBy &&
-          onDueByChangeRef.current &&
-          dueByDraftRef.current !== initialDueBy
-        ) {
-          onDueByChangeRef.current(
-            dueByDraftRef.current.trim().length > 0 ? dueByDraftRef.current.trim() : null,
-          );
-        }
-      }
+      flushDraft();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -141,22 +148,6 @@ export default function EnrichmentCard({
     onAnswer({ status: 'Unknown' });
     setItems([]);
     setSelections([]);
-  };
-
-  const flushDraft = () => {
-    if (question.variant === 'supplies') {
-      const validItems = items.filter((item) => item.name.trim() !== '');
-      if (validItems.length > 0) {
-        onAnswer({ status: 'Set', value: validItems });
-      }
-    } else if (question.variant === 'multi') {
-      if (selections.length > 0) {
-        onAnswer({ status: 'Set', value: asMultiSelectValue(selections) });
-      }
-      if (offersDueBy && onDueByChange && dueByDraft !== initialDueBy) {
-        onDueByChange(dueByDraft.trim().length > 0 ? dueByDraft.trim() : null);
-      }
-    }
   };
 
   const handleBack = () => {
