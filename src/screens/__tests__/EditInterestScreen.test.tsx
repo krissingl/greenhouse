@@ -1,5 +1,6 @@
 import { act, fireEvent, render } from '@testing-library/react-native';
 import type { ReactElement } from 'react';
+import { Alert } from 'react-native';
 
 import type { Interest } from '../../domain/interest';
 import { interestService } from '../../services/InterestService';
@@ -12,12 +13,15 @@ const INTEREST: Interest = {
   type: null,
   state: 'Backlog',
   archivedAt: null,
+  typeSkippedAt: null,
+  dueBy: null,
   createdAt: '2026-07-01T00:00:00.000Z',
   updatedAt: '2026-07-01T00:00:00.000Z',
 };
 
 async function renderScreen(navigation: {
   goBack: jest.Mock;
+  navigate?: jest.Mock;
 }): Promise<ReturnType<typeof render>> {
   const props = {
     navigation,
@@ -60,5 +64,63 @@ describe('EditInterestScreen', () => {
       await findByText('Could not save this interest. Please try again.'),
     ).toBeTruthy();
     expect(navigation.goBack).not.toHaveBeenCalled();
+  });
+
+  it('archives and navigates to InterestList as a low-key control', async () => {
+    jest.spyOn(interestService, 'get').mockResolvedValueOnce(INTEREST);
+    jest
+      .spyOn(interestService, 'archive')
+      .mockResolvedValueOnce({ ...INTEREST, archivedAt: '2026-07-01T00:00:00.000Z' });
+    const navigation = { goBack: jest.fn(), navigate: jest.fn() };
+
+    const { findByDisplayValue, getByText } = await renderScreen(navigation);
+    await findByDisplayValue('Learn violin');
+
+    await act(async () => {
+      fireEvent.press(getByText('Archive'));
+    });
+
+    expect(interestService.archive).toHaveBeenCalledWith('interest-1');
+    expect(navigation.navigate).toHaveBeenCalledWith('InterestList');
+  });
+
+  it('unarchives in place without navigating when already archived', async () => {
+    jest
+      .spyOn(interestService, 'get')
+      .mockResolvedValueOnce({ ...INTEREST, archivedAt: '2026-07-01T00:00:00.000Z' });
+    jest.spyOn(interestService, 'unarchive').mockResolvedValueOnce({ ...INTEREST, archivedAt: null });
+    const navigation = { goBack: jest.fn(), navigate: jest.fn() };
+
+    const { findByDisplayValue, getByText, findByText } = await renderScreen(navigation);
+    await findByDisplayValue('Learn violin');
+
+    await act(async () => {
+      fireEvent.press(getByText('Unarchive'));
+    });
+
+    expect(interestService.unarchive).toHaveBeenCalledWith('interest-1');
+    expect(await findByText('Archive')).toBeTruthy();
+    expect(navigation.navigate).not.toHaveBeenCalled();
+  });
+
+  it('deletes via confirmation and navigates to InterestList', async () => {
+    jest.spyOn(interestService, 'get').mockResolvedValueOnce(INTEREST);
+    jest.spyOn(interestService, 'delete').mockResolvedValueOnce(undefined);
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((_title, _message, buttons) => {
+      buttons?.find((button) => button.text === 'Delete')?.onPress?.();
+    });
+    const navigation = { goBack: jest.fn(), navigate: jest.fn() };
+
+    const { findByDisplayValue, getByText } = await renderScreen(navigation);
+    await findByDisplayValue('Learn violin');
+
+    await act(async () => {
+      fireEvent.press(getByText('Delete'));
+    });
+
+    expect(interestService.delete).toHaveBeenCalledWith('interest-1');
+    expect(navigation.navigate).toHaveBeenCalledWith('InterestList');
+
+    alertSpy.mockRestore();
   });
 });

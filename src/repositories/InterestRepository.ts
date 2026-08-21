@@ -1,3 +1,5 @@
+import * as Crypto from 'expo-crypto';
+
 import type {
   Interest,
   InterestFilter,
@@ -14,6 +16,8 @@ interface InterestRow {
   type: string | null;
   state: string;
   archived_at: string | null;
+  type_skipped_at: string | null;
+  due_by: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -25,6 +29,8 @@ function rowToInterest(row: InterestRow): Interest {
     type: row.type as InterestType | null,
     state: row.state as InterestState,
     archivedAt: row.archived_at,
+    typeSkippedAt: row.type_skipped_at,
+    dueBy: row.due_by,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -34,13 +40,13 @@ export class InterestRepository extends BaseRepository {
   async insert(newInterest: NewInterest): Promise<Interest> {
     return this.withConnection((db) => {
       const now = new Date().toISOString();
-      const id = crypto.randomUUID();
+      const id = Crypto.randomUUID();
       const type = newInterest.type ?? null;
 
       db.runSync(
-        `INSERT INTO interests (id, title, type, state, archived_at, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?);`,
-        [id, newInterest.title, type, 'Backlog', null, now, now],
+        `INSERT INTO interests (id, title, type, state, archived_at, type_skipped_at, due_by, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+        [id, newInterest.title, type, 'Backlog', null, null, null, now, now],
       );
 
       return {
@@ -49,6 +55,8 @@ export class InterestRepository extends BaseRepository {
         type,
         state: 'Backlog',
         archivedAt: null,
+        typeSkippedAt: null,
+        dueBy: null,
         createdAt: now,
         updatedAt: now,
       };
@@ -82,7 +90,9 @@ export class InterestRepository extends BaseRepository {
         params.push(`%${filter.query}%`);
       }
 
-      if (!filter.includeArchived) {
+      if (filter.archivedOnly) {
+        conditions.push('archived_at IS NOT NULL');
+      } else if (!filter.includeArchived) {
         conditions.push('archived_at IS NULL');
       }
 
@@ -116,13 +126,15 @@ export class InterestRepository extends BaseRepository {
 
       db.runSync(
         `UPDATE interests
-         SET title = ?, type = ?, state = ?, archived_at = ?, updated_at = ?
+         SET title = ?, type = ?, state = ?, archived_at = ?, type_skipped_at = ?, due_by = ?, updated_at = ?
          WHERE id = ?;`,
         [
           updated.title,
           updated.type,
           updated.state,
           updated.archivedAt,
+          updated.typeSkippedAt,
+          updated.dueBy,
           updated.updatedAt,
           updated.id,
         ],

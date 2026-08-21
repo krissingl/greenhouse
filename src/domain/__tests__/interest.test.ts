@@ -1,4 +1,4 @@
-import { assertValidTitle, validateTitle } from '../interest';
+import { assertValidTitle, displayLabel, validateTitle } from '../interest';
 
 describe('validateTitle', () => {
   it('rejects an empty title', () => {
@@ -29,5 +29,22 @@ describe('assertValidTitle', () => {
 
   it('does not throw for a valid title', () => {
     expect(() => assertValidTitle('Learn violin')).not.toThrow();
+  });
+});
+
+describe('displayLabel', () => {
+  it('spaces InProgress into "In progress"', () => {
+    expect(displayLabel('InProgress')).toBe('In progress');
+  });
+
+  it('leaves single-word states as-is', () => {
+    expect(displayLabel('Backlog')).toBe('Backlog');
+    expect(displayLabel('Complete')).toBe('Complete');
+  });
+
+  it('maps interest types to their garden-metaphor display names', () => {
+    expect(displayLabel('OneTimeProject')).toBe('Cuttings');
+    expect(displayLabel('StructuredLearning')).toBe('Trellises');
+    expect(displayLabel('UnstructuredLearning')).toBe('Evergreens');
   });
 });

@@ -27,8 +27,8 @@ export default function CreateInterestScreen({ navigation }: Props): ReactElemen
 
     try {
       setSaveError(null);
-      await interestService.create({ title });
-      navigation.goBack();
+      const created = await interestService.create({ title });
+      navigation.replace('GuidedSetup', { interestId: created.id });
     } catch {
       setSaveError('Could not save this interest. Please try again.');
     }
@@ -40,7 +40,7 @@ export default function CreateInterestScreen({ navigation }: Props): ReactElemen
         value={title}
         onChangeText={setTitle}
         onBlur={() => setTouched(true)}
-        placeholder="What do you want in your life?"
+        placeholder="What do you want to do?"
         placeholderTextColor={theme.colors.textTertiary}
         autoFocus
         style={[

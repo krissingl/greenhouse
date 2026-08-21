@@ -1,6 +1,24 @@
 # Greenhouse Recommendation Engine
 
-> **Historical planning document — superseded by [`spec/PROJECT_SPEC.md`](../spec/PROJECT_SPEC.md) as the single source of truth.** Frozen; do not edit for current truth.
+> **HISTORICAL — DO NOT USE AS CURRENT TRUTH.**
+> Superseded by [`spec/PROJECT_SPEC.md`](../spec/PROJECT_SPEC.md). Frozen 2026-07-16;
+> its contents were merged into the spec at that time and are not maintained here.
+>
+> **Stale in two separate ways — this is the most misleading of the frozen docs.**
+>
+> 1. **Since 2026-07-16.** "Recommendation Philosophy" below lists *user interest* and
+>    *historical fulfillment* as ranking priorities. The spec resolved the opposite:
+>    recommendation is a **feasibility filter, not a preference model**, and the engine
+>    never uses historical fulfillment, reflections, or analytics to rank or hide
+>    anything. This document was already wrong on that point before Phase 2.5.
+> 2. **Since 2026-08-20 (Phase 2.5).** The unit recommended is no longer always an
+>    Interest. For umbrella interests the candidate is a **`Task`** — the next incomplete
+>    one for `StructuredLearning`, any armed one for `UnstructuredLearning` — and
+>    constraints are evaluated at the effective (Task-then-umbrella) level. Only
+>    `OneTimeProject` is still evaluated as a whole Interest.
+>
+> **Do not cite this document in a review or a plan.** See the spec's Recommendation
+> Engine section.
 
 ## Purpose
 

@@ -1,10 +1,17 @@
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, SectionList, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import InterestListItem from '../components/InterestListItem';
-import type { Interest, InterestFilter } from '../domain/interest';
+import {
+  displayLabel,
+  type Interest,
+  type InterestFilter,
+  type InterestId,
+  type InterestState,
+  type InterestType,
+} from '../domain/interest';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { interestService } from '../services/InterestService';
 import { useTheme } from '../theme';
@@ -21,9 +28,64 @@ const STATE_FILTER_OPTIONS: StateFilterOption[] = [
   'Archived',
 ];
 
+function stateFilterLabel(option: StateFilterOption): string {
+  if (option === 'All' || option === 'Archived') {
+    return option;
+  }
+  return displayLabel(option as InterestState);
+}
+
+type TypeFilterOption = 'All' | InterestType;
+
+const TYPE_FILTER_OPTIONS: TypeFilterOption[] = [
+  'All',
+  'OneTimeProject',
+  'StructuredLearning',
+  'UnstructuredLearning',
+];
+
+function typeFilterLabel(option: TypeFilterOption): string {
+  return option === 'All' ? option : displayLabel(option);
+}
+
+const TYPE_SECTION_ORDER: InterestType[] = [
+  'OneTimeProject',
+  'StructuredLearning',
+  'UnstructuredLearning',
+];
+
+const NO_TYPE_SECTION_TITLE = 'Unplanted';
+
+interface InterestSection {
+  title: string;
+  data: Interest[];
+}
+
+function groupByType(interests: Interest[]): InterestSection[] {
+  const sections: InterestSection[] = [];
+
+  for (const type of TYPE_SECTION_ORDER) {
+    const data = interests.filter((interest) => interest.type === type);
+    if (data.length > 0) {
+      sections.push({ title: displayLabel(type), data });
+    }
+  }
+
+  const untyped = interests.filter((interest) => interest.type === null);
+  if (untyped.length > 0) {
+    sections.push({ title: NO_TYPE_SECTION_TITLE, data: untyped });
+  }
+
+  return sections;
+}
+
 const SEARCH_DEBOUNCE_MS = 300;
 
-function buildFilter(stateFilter: StateFilterOption, debouncedQuery: string): InterestFilter {
+function buildFilter(
+  stateFilter: StateFilterOption,
+  typeFilter: TypeFilterOption,
+  debouncedQuery: string,
+): InterestFilter {
   const filter: InterestFilter = {};
 
   if (debouncedQuery.trim().length > 0) {
@@ -31,9 +93,13 @@ function buildFilter(stateFilter: StateFilterOption, debouncedQuery: string): In
   }
 
   if (stateFilter === 'Archived') {
-    filter.includeArchived = true;
+    filter.archivedOnly = true;
   } else if (stateFilter !== 'All') {
     filter.state = stateFilter;
+  }
+
+  if (typeFilter !== 'All') {
+    filter.type = typeFilter;
   }
 
   return filter;
@@ -44,8 +110,11 @@ export default function InterestListScreen({ navigation }: Props): ReactElement 
   const [interests, setInterests] = useState<Interest[]>([]);
   const [searchInput, setSearchInput] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
-  const [stateFilter, setStateFilter] = useState<StateFilterOption>('All');
+  const [stateFilter, setStateFilter] = useState<StateFilterOption>('InProgress');
+  const [typeFilter, setTypeFilter] = useState<TypeFilterOption>('All');
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -60,12 +129,13 @@ export default function InterestListScreen({ navigation }: Props): ReactElement 
       let cancelled = false;
 
       interestService
-        .list(buildFilter(stateFilter, debouncedQuery))
+        .list(buildFilter(stateFilter, typeFilter, debouncedQuery))
         .then((results) => {
-          if (!cancelled) {
-            setInterests(results);
-            setLoadError(null);
+          if (cancelled) {
+            return;
           }
+          setInterests(results);
+          setLoadError(null);
         })
         .catch(() => {
           if (!cancelled) {
@@ -76,8 +146,22 @@ export default function InterestListScreen({ navigation }: Props): ReactElement 
       return () => {
         cancelled = true;
       };
-    }, [stateFilter, debouncedQuery]),
+    }, [stateFilter, typeFilter, debouncedQuery]),
   );
+
+  const handleStart = async (id: InterestId) => {
+    try {
+      setActionError(null);
+      const updated = await interestService.setState(id, 'InProgress');
+      setInterests((prev) => prev.map((interest) => (interest.id === id ? updated : interest)));
+      // Switching the filter to In progress (rather than leaving it as-is) keeps
+      // the just-started interest in view alongside other active work, instead
+      // of it vanishing because it no longer matches whatever filter was active.
+      setStateFilter('InProgress');
+    } catch {
+      setActionError('Could not start this interest. Please try again.');
+    }
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -86,35 +170,69 @@ export default function InterestListScreen({ navigation }: Props): ReactElement 
         onChangeText={setSearchInput}
         placeholder="Search interests"
         placeholderTextColor={theme.colors.textTertiary}
-        style={[
-          styles.searchInput,
-          { color: theme.colors.text, borderColor: theme.colors.border },
-        ]}
+        style={[styles.searchInput, { color: theme.colors.text, borderColor: theme.colors.border }]}
       />
-      <View style={styles.filterRow}>
-        {STATE_FILTER_OPTIONS.map((option) => (
-          <Pressable
-            key={option}
-            onPress={() => setStateFilter(option)}
-            style={[
-              styles.filterChip,
-              {
-                backgroundColor:
-                  stateFilter === option ? theme.colors.primary : theme.colors.surfaceVariant,
-              },
-            ]}
-          >
-            <Text
-              style={{
-                color: stateFilter === option ? theme.colors.textOnPrimary : theme.colors.text,
-                fontSize: theme.typography.caption.size,
-              }}
-            >
-              {option}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
+      <Pressable
+        onPress={() => setFiltersExpanded((prev) => !prev)}
+        style={[styles.filterSummaryBar, { borderColor: theme.colors.border }]}
+      >
+        <Text style={{ color: theme.colors.text, fontSize: theme.typography.bodySmall.size }}>
+          {stateFilterLabel(stateFilter)} · {typeFilterLabel(typeFilter)}
+        </Text>
+        <Text style={{ color: theme.colors.textSecondary }}>{filtersExpanded ? '▾' : '▸'}</Text>
+      </Pressable>
+      {filtersExpanded && (
+        <>
+          <View style={styles.filterRow}>
+            {STATE_FILTER_OPTIONS.map((option) => (
+              <Pressable
+                key={option}
+                onPress={() => setStateFilter(option)}
+                style={[
+                  styles.filterChip,
+                  {
+                    backgroundColor:
+                      stateFilter === option ? theme.colors.primary : theme.colors.surfaceVariant,
+                  },
+                ]}
+              >
+                <Text
+                  style={{
+                    color: stateFilter === option ? theme.colors.textOnPrimary : theme.colors.text,
+                    fontSize: theme.typography.caption.size,
+                  }}
+                >
+                  {stateFilterLabel(option)}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+          <View style={styles.filterRow}>
+            {TYPE_FILTER_OPTIONS.map((option) => (
+              <Pressable
+                key={option}
+                onPress={() => setTypeFilter(option)}
+                style={[
+                  styles.filterChip,
+                  {
+                    backgroundColor:
+                      typeFilter === option ? theme.colors.primary : theme.colors.surfaceVariant,
+                  },
+                ]}
+              >
+                <Text
+                  style={{
+                    color: typeFilter === option ? theme.colors.textOnPrimary : theme.colors.text,
+                    fontSize: theme.typography.caption.size,
+                  }}
+                >
+                  {typeFilterLabel(option)}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </>
+      )}
       {loadError && (
         <Text
           style={{
@@ -127,15 +245,41 @@ export default function InterestListScreen({ navigation }: Props): ReactElement 
           {loadError}
         </Text>
       )}
-      <FlatList
-        data={interests}
+      {actionError && (
+        <Text
+          style={{
+            color: theme.colors.error,
+            fontSize: theme.typography.caption.size,
+            marginHorizontal: 16,
+            marginTop: 8,
+          }}
+        >
+          {actionError}
+        </Text>
+      )}
+      <SectionList
+        sections={groupByType(interests)}
         keyExtractor={(item) => item.id}
         contentContainerStyle={interests.length === 0 ? styles.emptyContent : undefined}
         renderItem={({ item }) => (
           <InterestListItem
             interest={item}
             onPress={() => navigation.navigate('InterestDetail', { interestId: item.id })}
+            onStart={() => handleStart(item.id)}
           />
+        )}
+        renderSectionHeader={({ section }) => (
+          <View style={[styles.sectionHeader, { backgroundColor: theme.colors.background }]}>
+            <Text
+              style={{
+                color: theme.colors.textSecondary,
+                fontSize: theme.typography.caption.size,
+                fontWeight: theme.typography.caption.weight,
+              }}
+            >
+              {section.title.toUpperCase()}
+            </Text>
+          </View>
         )}
         ListEmptyComponent={
           <Text
@@ -174,6 +318,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
+  filterSummaryBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginHorizontal: 16,
+    marginTop: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderRadius: 8,
+  },
   filterRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -190,6 +345,11 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  sectionHeader: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 4,
   },
   addButton: {
     position: 'absolute',

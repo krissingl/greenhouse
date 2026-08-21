@@ -35,6 +35,16 @@ describe('InterestRepository', () => {
 
       expect(interest.type).toBe('StructuredLearning');
     });
+
+    it('defaults typeSkippedAt to null', async () => {
+      const interest = await repository.insert({ title: 'Learn violin' });
+      expect(interest.typeSkippedAt).toBeNull();
+    });
+
+    it('defaults dueBy to null', async () => {
+      const interest = await repository.insert({ title: 'Learn violin' });
+      expect(interest.dueBy).toBeNull();
+    });
   });
 
   describe('findById', () => {
@@ -103,6 +113,17 @@ describe('InterestRepository', () => {
 
       expect(results).toHaveLength(2);
     });
+
+    it('returns only archived interests when archivedOnly is true', async () => {
+      const archived = await repository.insert({ title: 'Archived one' });
+      await repository.update(archived.id, { archivedAt: new Date().toISOString() });
+      await repository.insert({ title: 'Active one' });
+
+      const results = await repository.query({ archivedOnly: true });
+
+      expect(results).toHaveLength(1);
+      expect(results[0].title).toBe('Archived one');
+    });
   });
 
   describe('update', () => {
@@ -126,6 +147,28 @@ describe('InterestRepository', () => {
       const updated = await repository.update(created.id, { title: 'Learn viola' });
 
       expect(updated.createdAt).toBe(created.createdAt);
+    });
+
+    it('round-trips typeSkippedAt', async () => {
+      const created = await repository.insert({ title: 'Learn violin' });
+      const skippedAt = new Date().toISOString();
+
+      const updated = await repository.update(created.id, { typeSkippedAt: skippedAt });
+      expect(updated.typeSkippedAt).toBe(skippedAt);
+
+      const refetched = await repository.findById(created.id);
+      expect(refetched?.typeSkippedAt).toBe(skippedAt);
+    });
+
+    it('round-trips dueBy', async () => {
+      const created = await repository.insert({ title: 'Learn violin' });
+      const dueBy = '2026-10-31T00:00:00.000Z';
+
+      const updated = await repository.update(created.id, { dueBy });
+      expect(updated.dueBy).toBe(dueBy);
+
+      const refetched = await repository.findById(created.id);
+      expect(refetched?.dueBy).toBe(dueBy);
     });
   });
 
