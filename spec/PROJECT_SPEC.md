@@ -85,8 +85,11 @@ labels. What an Interest *contains*, how it is set up, and what "complete" means
 differ by type — and that difference is the point. Do not unify them for uniformity's
 sake.
 
-- `OneTimeProject` — a finite endeavor that **is itself the unit of work** (build
-  shelves, paint a room). Holds no Tasks; the Interest is the thing you do.
+- `OneTimeProject` — a finite endeavor that **is itself the unit of work**, done in
+  essentially one sitting (hang the shelf, repot the plants, bake the sourdough). Holds
+  no Tasks; the Interest is the thing you do. If the user judges something to need
+  several distinguishable sittings, their answers make it an umbrella instead — the
+  examples here illustrate the shape, they do not fix any particular pursuit's type.
 - `UnstructuredLearning` — an **umbrella** over several named, **repeatable** Tasks,
   with no natural endpoint (learn violin → "practice 15 minutes", "read sheet music",
   "follow a tutorial"). You never do the umbrella; you do its Tasks, repeatedly.
@@ -203,6 +206,11 @@ whichever level the answer actually varies:
 | `OneTimeProject` | the Interest | the Interest is the unit of work |
 | `UnstructuredLearning` | mostly the **Task** | requirements genuinely differ per Task — practising violin needs a violin, reading sheet music needs the book |
 | `StructuredLearning` | mostly the **umbrella** | requirements are constant across steps — a course needs a computer and internet for every lesson |
+
+Storage follows from this: `Constraint.interestId` becomes `InterestId | null` and a
+`taskId: TaskId | null` is added, exactly one of which is set. The `UNIQUE (interest_id,
+dimension)` guarantee becomes a pair of partial unique indexes so a Task's answers and
+its umbrella's answers cannot collide.
 
 Resolution is **per-dimension override, never a merge**: the engine reads the Task's
 answer for a dimension and falls back to its umbrella's when the Task has none. No merge
@@ -501,12 +509,12 @@ interface InterestService {
   create(input: { title: string } & Partial<InterestDetails>): Promise<Interest>;
   get(id: InterestId): Promise<Interest | null>;
   list(filter?: { state?: InterestState; type?: InterestType; query?: string; includeArchived?: boolean }): Promise<Interest[]>;
-  update(id: InterestId, patch: Partial<Pick<Interest, 'title' | 'type' | 'state' | 'archivedAt' | 'typeSkippedAt' | 'dueBy'>>): Promise<Interest>;
+  update(id: InterestId, patch: Partial<Pick<Interest, 'title' | 'type' | 'state' | 'archivedAt' | 'typeSkippedAt' | 'dueBy' | 'oneSittingAnswer' | 'orderedStepsAnswer'>>): Promise<Interest>;
   setState(id: InterestId, state: InterestState): Promise<Interest>;
   archive(id: InterestId): Promise<Interest>;   // soft-remove (sets archivedAt); delete is a separate hard op
   unarchive(id: InterestId): Promise<Interest>; // clears archivedAt; inverse of archive
   delete(id: InterestId): Promise<void>;    // permanent hard removal; distinct from archive
-  skipType(id: InterestId): Promise<Interest>;  // durable "Not sure" on the Type question; sets typeSkippedAt, clears type. Choosing an actual type clears typeSkippedAt.
+  answerTypeQuestion(id: InterestId, question: 'OneSitting' | 'OrderedSteps', answer: 'Yes' | 'No' | 'Unknown'): Promise<Interest>; // Phase 2.5 — replaces skipType. Records one inference answer and re-derives `type` from the pair; 'Unknown' leaves type undetermined rather than skipping it.
 }
 
 interface ConstraintService {                  // added Phase 2 — no screen may call ConstraintRepository directly
@@ -552,6 +560,7 @@ interface TaskService {                       // Phase 2.5 — umbrella interest
   reorder(interestId: InterestId, orderedTaskIds: TaskId[]): Promise<void>;  // sequenced mode only
   complete(taskId: TaskId, options?: { rearm?: boolean }): Promise<Task>;    // logs a completion event; rearm (repeatable only) makes the Task actionable again
   nextActionable(interestId: InterestId): Promise<Task | null>;              // sequenced: next incomplete; repeatable: next armed
+  reopen(taskId: TaskId): Promise<Task>;                                     // un-closes a closed Task, mirroring the rule that Interests can be re-opened
   remove(taskId: TaskId): Promise<void>;
 }
 ```
@@ -565,7 +574,7 @@ interface InterestRepository {
   insert(interest: NewInterest): Promise<Interest>;
   findById(id: InterestId): Promise<Interest | null>;
   query(filter: InterestFilter): Promise<Interest[]>;
-  update(id: InterestId, patch: Partial<Pick<Interest, 'title' | 'type' | 'state' | 'archivedAt' | 'typeSkippedAt' | 'dueBy'>>): Promise<Interest>;  // same narrow patch as InterestService.update
+  update(id: InterestId, patch: Partial<Pick<Interest, 'title' | 'type' | 'state' | 'archivedAt' | 'typeSkippedAt' | 'dueBy' | 'oneSittingAnswer' | 'orderedStepsAnswer'>>): Promise<Interest>;  // same narrow patch as InterestService.update
   remove(id: InterestId): Promise<void>;
 }
 
@@ -776,6 +785,20 @@ design tokens. Read it before expanding Phases 0, 2, 3, and 5–7 into tickets.
   flagging the interest. Choosing an actual type clears `typeSkippedAt`.
   `InterestService` gains a corresponding `skipType(id): Promise<Interest>`
   method. See [API Contracts](#api-contracts-internal-service--repository-interfaces).
+  **Revised 2026-08-20 (Phase 2.5):** with type derived rather than asked, there is
+  nothing to "skip" — `skipType` is replaced by `answerTypeQuestion`, which records an
+  inference answer (including `'Unknown'`) and re-derives `type` from the pair.
+  `typeSkippedAt` now means "not yet enough answered to determine a type."
+- **Type drift is upward only** _(2026-08-20, Phase 2.5)_ — a `OneTimeProject` that
+  turns out to be bigger than intended and becomes an umbrella is a real flow, and a
+  trivial one, since a Cutting has no Tasks to carry over. The reverse — a built-out
+  umbrella downgraded to a `OneTimeProject` — is **not** a real flow: a user would
+  delete the interest and recreate it rather than strip its Tasks, and the only way to
+  land on a wrong umbrella type is a mis-answer at setup, when there are no Tasks yet.
+  The case that would orphan Tasks and the case that actually occurs do not overlap.
+  Therefore: with no Tasks, reconsidering type is freely available in either direction;
+  once Tasks exist, the inference flow never lands on `OneTimeProject` as an outcome.
+  **No warning dialog, discard flow, or orphan-reconciliation UI is to be built.**
 
 ## Open Questions
 

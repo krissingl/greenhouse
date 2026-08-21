@@ -1,5 +1,42 @@
 # greenhouse — Changelog
 
+## [2026-08-20] — Synced API Contracts to the Phase 2.5 plan; recorded upward-only type drift
+- Triggered by: Phase 2.5 planning (`docs/planning/phasePlans/phase-2.5-interest-shapes-tasks.md`
+  and `docs/planning/ticketPlans/ticket-plan-phase-2.5.md`), which surfaced contract deltas
+  the tickets depend on. Documentation only — no code written; Phase 2.5 is not yet
+  implemented. Every delta below is a consequence of a decision already recorded in the
+  previous entry, not a new decision.
+- Changed: `InterestService.skipType` **removed**, replaced by
+  `answerTypeQuestion(id, question: 'OneSitting' | 'OrderedSteps', answer: 'Yes' | 'No' | 'Unknown')`.
+  With type derived rather than asked there is nothing to skip; the method records one
+  inference answer and re-derives `type` from the pair. The 2026-07-19 `typeSkippedAt`
+  decision is annotated in place rather than deleted — `typeSkippedAt` now means "not yet
+  enough answered to determine a type."
+- Changed: `InterestService.update` and `InterestRepository.update` patch `Pick` gains
+  `oneSittingAnswer` and `orderedStepsAnswer`.
+- Added: `TaskService.reopen(taskId)` — un-closes a closed Task, mirroring the existing
+  rule that Interests can be re-opened.
+- Changed: `Constraint.interestId` becomes `InterestId | null` and `Constraint` gains
+  `taskId: TaskId | null`, exactly one of which is set. The `UNIQUE (interest_id,
+  dimension)` guarantee becomes a pair of partial unique indexes so a Task's answers and
+  its umbrella's cannot collide. Recorded in the Domain Model's Constraint section.
+- Added: **Type drift is upward only** to Resolved Decisions — user ruling, 2026-08-20.
+  `OneTimeProject` → umbrella is a real and trivial flow; umbrella-with-Tasks →
+  `OneTimeProject` is not a real flow (a user would delete and recreate), and the only
+  way to land on a wrong umbrella type is a mis-answer at setup when no Tasks exist. So
+  the orphaning case and the occurring case never overlap. With no Tasks, reconsideration
+  is free in either direction; once Tasks exist the inference flow never lands on
+  `OneTimeProject`. **No warning dialog, discard flow, or orphan-reconciliation UI.**
+- Changed: the `OneTimeProject` illustration from "build shelves, paint a room" to
+  one-sitting examples, with an explicit note that the examples illustrate the shape and
+  do not fix any particular pursuit's type — the user's answers decide it. The previous
+  examples read as multi-session work sitting under a one-sitting definition.
+- Note: two further deltas are implementation-level and are **not** reflected in the
+  spec, which does not describe screens or routes — migrations now run 001–011 (was
+  001–007), and `GuidedSetupScreen`'s route param renames `startDimension` → `startAxis`,
+  widens to `'OneSitting' | 'OrderedSteps' | Exclude<ConstraintDimension, 'EnergyFocus'>`,
+  and adds an optional `taskId`. Both are captured in the ticket plan.
+
 ## [2026-08-20] — Remodelled the three Interest types as container shapes; added the Task entity and Phase 2.5
 - Triggered by: Phase 2 UAT finding that the three types "are three different types of
   interests bundled into the same questionnaire and data box and just slapped with a
