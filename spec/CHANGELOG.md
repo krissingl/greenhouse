@@ -1,5 +1,83 @@
 # greenhouse — Changelog
 
+## [2026-08-20] — Remodelled the three Interest types as container shapes; added the Task entity and Phase 2.5
+- Triggered by: Phase 2 UAT finding that the three types "are three different types of
+  interests bundled into the same questionnaire and data box and just slapped with a
+  label to differentiate them." Resolves the standing todo to revisit
+  `StructuredLearning`/`UnstructuredLearning` together with the deferred Complete
+  affordance. Documentation only — no code written; Phase 2.5 is not yet planned.
+- Added: **`Task`** to the Domain Model — the child of an umbrella Interest, one entity
+  with two modes (`repeatable` for `UnstructuredLearning`, `sequenced` for
+  `StructuredLearning`). Completion is logged as an **event, not a flag**, so a
+  repeatable Task accumulates history and each completion can carry its own optional
+  Reflection; "re-arm" is log-and-make-actionable-again, keeping one durable row per
+  Task rather than spawning instance rows.
+- Changed: **`Interest` types are now three container shapes.** `OneTimeProject` is
+  itself the unit of work and has **no** Tasks; the other two are umbrellas over Tasks.
+  The Shape & completion table now keys on Tasks rather than Steps, and completion moves
+  **down** to the Task — which makes guilt-free Conclude/Resting structural rather than
+  special-case copy, and dissolves the Complete-button question deferred in Phase 2.
+- Removed: the sketched **`Step`** entity and `StepService`. `Step` is now the
+  `sequenced` mode of `Task`; `TaskService` and `TaskRepository` replace them in API
+  Contracts.
+- Added: **Type is derived, never asked.** Two behavioral questions ("can this be
+  finished in one sitting?", "is there a set order of steps to get there?") determine
+  type, which is stored as a consequence. Type is no longer a free-standing editable
+  field, and `typeSkippedAt` simplifies to "not yet enough answered to determine."
+- Added: **Constraint level is a property of the type.** Constraints attach to an
+  Interest or a Task; resolution is per-dimension **override** (Task's answer, falling
+  back to the umbrella's) with no merge or union semantics. `ConstraintService` gains
+  `listForTask` / `effectiveForTask` and `answer`'s target widens from Interest-only.
+- Added: **The guided flow is per-type, not one flow with a branch** — recorded in the
+  spec's Resolved Decisions and expanded in `docs/planning/ux-design-intent.md`. A
+  uniform flow forced a choice between a 30-plus-question setup and umbrella-level
+  questions that read as incoherent; both are artifacts of the uniform flow, not the
+  model. Tasks are captured name-only at setup, with Task-level axes filled in lazily.
+- Added: **Phase 2.5 — Interest Shapes (Tasks)** to the Feature Roadmap, positioned as
+  blocking Phase 3. Phase 3/4/5/6 cells updated: recommendation candidates are Tasks for
+  umbrella interests and the Interest itself for `OneTimeProject`; sessions attach to the
+  Task where one exists; reflections are offered on any completion and never required;
+  concluding an umbrella gives impact capture a natural trigger.
+- Resolved: the Open Question "Which phase owns the `Step` entity, and which phase owns
+  type-specific Interest behavior" — both are owned by Phase 2.5.
+- Added: three narrower Open Questions in its place — type **display names**
+  (Cuttings/Trellises/Evergreens still read awkwardly; explicitly not blocking), the
+  **Task state model**, and **Task-level enrichment timing**.
+- Changed: `docs/planning/ux-design-intent.md` (the living design doc) — added "The flow
+  is per-type, not one flow with a branch", explicitly superseding the single-flow
+  mechanics above it, and rewrote "Interest Shapes & Structured Itineraries" around
+  umbrellas, Tasks, and the complete → reflect → close-or-re-arm loop.
+- Changed: sharpened the frozen banners on `docs/DOMAIN_MODEL.md`,
+  `docs/RECOMMENDATION_ENGINE.md`, `docs/SYS_ARCH.md`, and `docs/ROADMAP.md` to name
+  exactly what is stale and instruct readers not to cite them. These four were **not**
+  rewritten: their contents were merged into the spec on 2026-07-16, so re-syncing them
+  would restore the duplication that consolidation removed. The banners exist so a
+  reviewer or planning agent cannot mistake them for current truth — notably
+  `RECOMMENDATION_ENGINE.md`, which has contradicted the "feasibility filter, not a
+  preference model" decision since 2026-07-16, independent of Phase 2.5.
+
+## [2026-08-20] — Documented migration 007's full row rewrite and corrected the Interest patch signatures
+- Triggered by: Phase 2 review (spec reviewer findings, recorded as todos in
+  `sessions/todo.md`). Documentation only — the shipped code was already correct
+  in every case below; only the spec lagged.
+- Changed: The `Weather`/`Season`/`TimeOfDay` **Migration** paragraph now
+  enumerates all four row-rewrite cases migration 007 implements, not two. Newly
+  documented: a `None` row with no value fans out into three `None` rows (one per
+  new dimension, ids derived as `<id>-Weather` / `<id>-Season` / `<id>-TimeOfDay`,
+  original timestamps preserved) because "weather or time of year doesn't matter"
+  answered all three axes at once and dropping it would silently reopen an
+  answered question; and any remaining valueless (`Unknown`) row is dropped,
+  since `ConstraintService.listForInterest` synthesizes `Unknown` for absent rows,
+  making a dropped row and a stored one indistinguishable to every reader.
+- Changed: `InterestService.update` in API Contracts — added `'dueBy'` to the
+  patch `Pick`, matching the shipped `InterestPatch` (`src/domain/interest.ts`).
+  The spec's Due date prose already documented the feature; only the literal
+  signature lagged.
+- Changed: `InterestRepository.update` in API Contracts — was `Partial<Interest>`,
+  now the same narrow `Pick`-based patch as `InterestService.update`. The shipped
+  repository has always taken `InterestPatch`; the wide `Partial<Interest>` in the
+  spec sanctioned a patch the code deliberately rejects.
+
 ## [2026-07-19] — Recorded four settled Phase 2 planning decisions
 - Triggered by: Phase 2 planning (phase plan + ticket plan "Flag for the user")
 - Context: `docs/planning/phasePlans/phase-2-guided-interest-setup.md` and

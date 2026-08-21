@@ -1,6 +1,17 @@
 # Greenhouse Implementation Roadmap
 
-> **Historical planning document — superseded by [`spec/PROJECT_SPEC.md`](../spec/PROJECT_SPEC.md) as the single source of truth.** Frozen; do not edit for current truth.
+> **HISTORICAL — DO NOT USE AS CURRENT TRUTH.**
+> Superseded by the **Feature Roadmap** section of
+> [`spec/PROJECT_SPEC.md`](../spec/PROJECT_SPEC.md). Frozen 2026-07-16; its contents were
+> merged into the spec at that time and are not maintained here.
+>
+> **Known stale as of 2026-08-20 (Phase 2.5).** The phase list below has **no Phase
+> 2.5 — Interest Shapes (Tasks)**, which was inserted between Phases 2 and 3 and
+> **blocks Phase 3**. The Phase 2 entry also predates the shipped scope (the guided flow
+> became per-type, and weather/season split into three dimensions), and Phases 3–6 predate
+> Tasks becoming the recommended and session-attached unit.
+>
+> **Do not use this list to sequence work.** See the spec's Feature Roadmap.
 
 The project will be developed as a series of **vertical slices**, with each phase delivering a complete, usable feature that exercises the presentation, application, domain, and persistence layers.
 

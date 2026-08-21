@@ -1,6 +1,19 @@
 # Greenhouse Domain Model
 
-> **Historical planning document — superseded by [`spec/PROJECT_SPEC.md`](../spec/PROJECT_SPEC.md) as the single source of truth.** Frozen; do not edit for current truth.
+> **HISTORICAL — DO NOT USE AS CURRENT TRUTH.**
+> Superseded by [`spec/PROJECT_SPEC.md`](../spec/PROJECT_SPEC.md). Frozen 2026-07-16;
+> its contents were merged into the spec at that time and are not maintained here.
+>
+> **Known stale as of 2026-08-20 (Phase 2.5).** This document describes the three
+> Interest types as three flat variations of one shape, and has no concept of a `Task`.
+> Both were replaced: `OneTimeProject` is itself the unit of work, while
+> `StructuredLearning` and `UnstructuredLearning` are **umbrellas over `Task` children**
+> (`sequenced` and `repeatable` respectively), and the sketched `Step` entity became the
+> `sequenced` mode of `Task`. Completion moved down to the Task. Constraints may now
+> attach to a Task as well as an Interest. The sections below on Structured Learning,
+> Unstructured Learning, and Constraint are the most misleading.
+>
+> **Do not cite this document in a review or a plan.** See the spec's Domain Model.
 
 ## Purpose
 

@@ -88,9 +88,51 @@ relevant question at the exact moment it pays off:
 - Idle browsing → an optional, dismissible "Got a minute? 3 seeds could tell me more."
 - **Never** a push notification to finish setup (a non-goal regardless).
 
+### The flow is per-type, not one flow with a branch _(revised 2026-08-20, Phase 2.5)_
+
+**This supersedes the single-flow assumption in the mechanics above.** The three
+interest types are three different container shapes (see spec Domain Model), and the
+setup flow has to *match the shape* rather than force all three through one
+questionnaire with a branch bolted on.
+
+Two failures come from the uniform flow, and both dissolve once the flow is
+type-shaped:
+
+- **Question volume.** Asking every axis at both the umbrella and the Task level makes
+  a three-Task interest a thirty-plus-question flow — the exact friction this app
+  exists to remove.
+- **Incoherent questions.** "How long does a good session take?" is a sensible question
+  about *build garage shelves* and a meaningless one about *Learn the Violin*. You do
+  not do the umbrella; you do its Tasks.
+
+**Type comes first, and is inferred — never asked.** The flow opens with a couple of
+behavioral questions ("Can this be finished in one sitting?", "Is there a set order of
+steps to get there?"). The user never sees the words Cutting, Trellis, or Evergreen as
+a *choice*. Naming the taxonomy makes the user do the classifying, which is the app's
+job, not theirs.
+
+Then the flow forks:
+
+| Type | What the flow asks | Constraints answered at |
+|---|---|---|
+| **Cutting** (`OneTimeProject`) | the axes, directly — the Interest *is* the unit of work, so every question reads correctly about it. **The existing card flow is already right here; leave it alone.** | the Interest |
+| **Evergreen** (`UnstructuredLearning`) | *"What kinds of things will you do?"* → capture Tasks by name. Axes attach to **Tasks**, because that is the level where they genuinely differ. | mostly the Task |
+| **Trellis** (`StructuredLearning`) | *"What are the steps, in order?"* → capture ordered Tasks, names only. Requirements don't vary across steps, so the axes are asked **once**, at the umbrella. | mostly the umbrella |
+
+**Setup stays short; specificity accrues.** Tasks are captured with **a name and
+nothing else**. Task-level axes are filled in **lazily** — on demand when the user
+edits a Task, and through the just-in-time enrichment pattern above. This is also more
+honest: you usually don't know a Task's real requirements until you've done it once.
+
+**Where a Task needs the umbrella's answer plus one more thing** (a Trellis step that
+also needs a textbook), pre-fill the editor with the umbrella's values so the user
+amends rather than retypes. This is a UI convenience, not an inheritance rule — the
+engine only ever does per-dimension override.
+
 ### Question set (v1)
 
 All chip/slider inputs; minimal typing. Every card has "Not sure" and "Doesn't apply."
+Which of these are asked, and at which level, depends on the type — see the fork above.
 
 | Axis | Question | Input |
 |---|---|---|
@@ -112,25 +154,36 @@ All chip/slider inputs; minimal typing. Every card has "Not sure" and "Doesn't a
 
 ## Interest Shapes & Structured Itineraries
 
-The three interest types have genuinely different shapes (see spec Domain Model). UX
-implications:
+The three interest types have genuinely different shapes (see spec Domain Model), and
+_(revised 2026-08-20, Phase 2.5)_ two of them are **umbrellas over Tasks** rather than
+units of work in their own right. UX implications:
 
-- **One-time (dragon):** no ceremony. Do it, tap **Complete**, get the one reflection.
-- **Unstructured (violin):** repeated homogeneous engagement. No pre-defined steps.
-  Completion is a guilt-free **Conclude / Resting** action (satisfied or paused, never
-  "finished").
-- **Structured (cyber cert):** owns an ordered list of **Steps**. Steps are added
-  **incrementally** — quick-add as you go, paste a list, or track loosely ("~Module 4 of
-  30") — **never** a mandatory full-curriculum upfront. Granularity is the user's choice
-  (a video+assignment can be one step or two).
+- **Cutting (dragon):** no ceremony, no Tasks. Do it, tap **Complete**, get the one
+  reflection. The Interest is the thing.
+- **Evergreen (violin):** an umbrella over **repeatable** Tasks — "practice 15 minutes",
+  "read sheet music", "follow a tutorial". You never do the umbrella. Completing a Task
+  is the real, frequent closure: **complete → (optionally reflect) → close it out, or
+  re-arm it** so the next instance is lined up while the finished one still counts.
+  Concluding the *umbrella* is the rare guilt-free **Conclude / Resting** action
+  (satisfied or paused, never "finished").
+- **Trellis (cyber cert):** an umbrella over an ordered, finite list of **sequenced**
+  Tasks. Added **incrementally** — quick-add as you go, paste a list, or track loosely
+  ("~Module 4 of 30") — **never** a mandatory full-curriculum upfront. Granularity is the
+  user's choice (a video+assignment can be one Task or two). Only the **next** Task is
+  actionable; the rest wait under the umbrella instead of cluttering the board.
 
-**Payoff:** for structured interests the recommender surfaces the *next concrete Step*,
-time-fitted ("You have 15 min → next cyber step is a 10-min video + 5-min assignment"),
-turning a vague pursuit into an actionable suggestion.
+**Why completion moving down matters.** Guilt-free completion stops being copy we write
+carefully and becomes something the structure guarantees. The user banks closure
+constantly at the Task level; the pursuit above it is simply never asked to be finished.
+
+**Payoff:** the recommender surfaces the *next concrete Task*, time-fitted ("You have 15
+min → next cyber step is a 10-min video + 5-min assignment"), turning a vague pursuit
+into an actionable suggestion.
 
 **Completion is always user-declared**, never auto-forced — the app only *offers* it at
-the natural moment (all Steps checked → "Mark complete & reflect?"). Interests can be
-re-opened and Steps added after a "completion."
+the natural moment (all Tasks checked → "Mark complete?"). **Reflection is offered on
+every completion at either level and is never required.** Interests can be re-opened and
+Tasks added after a "completion."
 
 ---
 
@@ -193,4 +246,5 @@ design system — do **not** regenerate them from scratch:
 - [`spec/PROJECT_SPEC.md`](../../spec/PROJECT_SPEC.md) — authoritative domain model,
   contracts, architecture, and recommendation-engine behavior.
 - Feature Roadmap (in the spec) — phase sequencing; this doc supplies the design intent
-  for Phases 2 (guided setup), 3 (next-Step recommendations), and 5–7 (fulfillment).
+  for Phases 2 (guided setup), 2.5 (interest shapes & per-type flows), 3 (next-Task
+  recommendations), and 5–7 (fulfillment).

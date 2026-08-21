@@ -78,14 +78,29 @@ Something the user wants in their life (e.g. learn violin, earn a certification,
 build garage shelves). Interests are opportunities, not obligations. Only a title
 is required at creation; all other data is optional and incrementally added.
 
-**Types**
+**Types** _(remodelled 2026-08-20, Phase 2.5)_
 
-- `OneTimeProject` — finite endeavor with a user-defined completion point
-  (build shelves, paint a room). Completion is determined by the user.
-- `StructuredLearning` — educational pursuit with a defined progression path
-  (certification, course). Session-based, has a completion state.
-- `UnstructuredLearning` — ongoing pursuit with no natural endpoint (learn
-  violin, learn painting). Session-based, long-term exploration.
+The three types are **three different container shapes**, not one shape wearing three
+labels. What an Interest *contains*, how it is set up, and what "complete" means all
+differ by type — and that difference is the point. Do not unify them for uniformity's
+sake.
+
+- `OneTimeProject` — a finite endeavor that **is itself the unit of work** (build
+  shelves, paint a room). Holds no Tasks; the Interest is the thing you do.
+- `UnstructuredLearning` — an **umbrella** over several named, **repeatable** Tasks,
+  with no natural endpoint (learn violin → "practice 15 minutes", "read sheet music",
+  "follow a tutorial"). You never do the umbrella; you do its Tasks, repeatedly.
+- `StructuredLearning` — an **umbrella** over an **ordered, finite** sequence of Tasks
+  (a certification's fifteen lessons). Tasks live under the umbrella rather than
+  cluttering the board; only the next one is actionable.
+
+**Type is derived, never asked** _(2026-08-20)_ — the user is never asked "is this a
+one-time project?" Naming the taxonomy hands the app's job back to the user, which
+inverts the product's purpose. Type falls out of a couple of behavioral questions early
+in the guided flow ("can this be finished in one sitting?", "is there a set order of
+steps to get there?") and is stored as a consequence of those answers. It is therefore
+**not a free-standing editable field** — changing type means revisiting those
+questions, not picking from a dropdown.
 
 **States**
 
@@ -95,15 +110,22 @@ is required at creation; all other data is optional and incrementally added.
 
 **Shape & completion by type**
 
-| Type | Steps | Sessions | "Complete" means |
-|---|---|---|---|
-| `OneTimeProject` | — | optional | user marks done → reflect |
-| `UnstructuredLearning` | — | the main mechanic (repeated) | guilt-free **Conclude / Resting** (satisfied or paused, never "finished") → reflect |
-| `StructuredLearning` | ordered **Steps** | ≈ doing the next Step | Steps done or user declares → reflect |
+| Type | Tasks | "Complete" means |
+|---|---|---|
+| `OneTimeProject` | none — the Interest is the unit of work | user marks done |
+| `UnstructuredLearning` | many, **repeatable**, unordered | completing a *Task* is the frequent, real closure; concluding the *umbrella* is the rare, guilt-free **Conclude / Resting** (satisfied or paused, never "finished") |
+| `StructuredLearning` | many, **sequenced**, ordered and finite | Tasks done in order, or the user declares done |
+
+**Completion moves down to the Task** for both umbrella types, and that is what makes
+guilt-free completion *structural* rather than cosmetic: the user banks genuine closure
+constantly at the Task level, while the pursuit above it is never told it should have
+finished. The Conclude/Resting language stops being special-case copy papering over a
+completion model that did not fit, and becomes a rare, meaningful act.
 
 Completion is **always user-declared** and never auto-forced — the app only *offers*
-it at the natural moment. Interests can be re-opened, and Steps added after a
-"completion."
+it at the natural moment. Interests can be re-opened, and Tasks added after a
+"completion." **Reflection is offered on every completion, at either level, and is
+never required.**
 
 **Due date** _(added 2026-07-28, Phase 2)_ — an Interest may carry an optional
 `dueBy` date ("done before Halloween", "before the Renaissance Faire"). It is captured
@@ -116,6 +138,39 @@ home prevents conflicting dates and lets the engine query it without unpacking J
 climbs the recommendations; it never produces a notification, badge, reminder, or any
 other push. A missed `dueBy` does not fail, flag, or hide the interest — Greenhouse
 does not scold.
+
+### Task _(the child of an umbrella Interest)_
+
+_(added 2026-08-20, Phase 2.5)_ — a unit of work belonging to an umbrella Interest.
+`OneTimeProject` interests have **no** Tasks; `UnstructuredLearning` and
+`StructuredLearning` are umbrellas whose Tasks are the things the user actually does.
+Each Task has a title, its parent `interestId`, a `mode`, and its own completion
+history.
+
+**One entity, two modes.** The board treatment, the umbrella relationship, and the
+completion path are identical across both umbrella types; only ordering and
+repeatability differ. That is one entity with a `mode`, not two entities.
+
+- `repeatable` (`UnstructuredLearning`) — unordered. Completing a Task does not consume
+  it: the user may close it out for good, or **re-arm** it so the next instance is
+  lined up while still banking the satisfaction of the one just finished.
+- `sequenced` (`StructuredLearning`) — ordered and finite. A Task is consumed once.
+  Only the **next incomplete** Task is actionable; the rest wait quietly under the
+  umbrella instead of cluttering the board.
+
+This **replaces the previously-sketched `Step` entity**: `Step` is now the `sequenced`
+mode of `Task`, and `StepService` is replaced by `TaskService`. Resolves the standing
+open question about which phase owns `Step`.
+
+**Completion is an event, not a flag** — each completion is logged rather than flipping
+a boolean, so a `repeatable` Task accumulates a real history and every completion can
+carry its own optional Reflection. Re-arming is therefore "log this completion and make
+the Task actionable again," keeping **one durable row per Task** rather than spawning an
+instance row per repetition.
+
+**Tasks are added incrementally** — quick-add as you go, paste a list, or track loosely.
+**Never** a mandatory full-curriculum upfront. Granularity is the user's choice: a video
+plus its assignment can be one Task or two.
 
 ### Constraint
 
@@ -138,6 +193,27 @@ no question card until a later phase (see Feature Roadmap).
 `Time` (how long one session takes) and `TimeOfDay` (when in the day it is possible)
 are **different questions and must never share a name** — the distinction survives from
 the shape this section replaces.
+
+**Which level owns a constraint is a property of the type** _(2026-08-20, Phase 2.5)_ —
+constraints attach to an **Interest** or to a **Task**, and the guided flow asks at
+whichever level the answer actually varies:
+
+| Type | Answered at | Why |
+|---|---|---|
+| `OneTimeProject` | the Interest | the Interest is the unit of work |
+| `UnstructuredLearning` | mostly the **Task** | requirements genuinely differ per Task — practising violin needs a violin, reading sheet music needs the book |
+| `StructuredLearning` | mostly the **umbrella** | requirements are constant across steps — a course needs a computer and internet for every lesson |
+
+Resolution is **per-dimension override, never a merge**: the engine reads the Task's
+answer for a dimension and falls back to its umbrella's when the Task has none. No merge
+or union semantics exist anywhere in the engine. Where a Task needs the umbrella's
+answer *plus* one more item, the **editor pre-fills with the umbrella's values** so the
+user amends rather than retypes, and what is stored on the Task is a complete,
+self-contained answer.
+
+This is deliberately **not** one inheritance algorithm applied uniformly to all three
+types. Where the answers live is part of what distinguishes the types, and flattening
+that into a merge rule reintroduces exactly the conflation Phase 2.5 exists to remove.
 
 **Why the questionnaire exists** — it is **not** an attempt to understand the user's
 task. It collects user-defined data so that (1) the user can read their interest back
@@ -166,11 +242,22 @@ representing the domain incorrectly. Correctness wins; the migration is paid onc
 
 **Migration** — splitting the stored dimension requires a migration that widens the
 `dimension` `CHECK` constraint (a SQLite table rebuild — create, copy, drop, rename) and
-rewrites existing `WeatherSeason` rows: a row whose value carries `kind: 'Weather' |
-'Season' | 'TimeOfDay'` becomes a row on the matching new dimension with the `kind`
-wrapper stripped; a legacy `{ matters, note? }` row (already decoded as `Unknown` since
-Phase 2 Batch A) carries no queryable data and is dropped rather than guessed at. No
-`WeatherSeason` value survives in the schema afterwards.
+rewrites existing `WeatherSeason` rows. Four cases, exhaustive:
+
+- A row whose value carries `kind: 'Weather' | 'Season' | 'TimeOfDay'` becomes a row on
+  the matching new dimension with the `kind` wrapper stripped.
+- A legacy `{ matters, note? }` row (already decoded as `Unknown` since Phase 2 Batch A)
+  carries no queryable data and is dropped rather than guessed at.
+- A `None` row with no value — "weather or time of year doesn't matter" — answered all
+  three axes at once, so it **fans out into three `None` rows**, one per new dimension,
+  with ids derived from the original (`<id>-Weather`, `<id>-Season`, `<id>-TimeOfDay`)
+  and the original timestamps preserved. Dropping it would silently reopen a question
+  the user already answered.
+- Any remaining valueless row (`Unknown`) is dropped: `ConstraintService.listForInterest`
+  synthesizes `{ status: 'Unknown', value: null }` for dimensions with no row, so an
+  absent row and a stored `Unknown` row are indistinguishable to every reader.
+
+No `WeatherSeason` value survives in the schema afterwards.
 
 The covered-axis question flow therefore becomes **eight cards** — `Type`, `Time`,
 `Supplies`, `Location`, `Social`, `Weather`, `Season`, `TimeOfDay` — with `EnergyFocus`
@@ -218,14 +305,6 @@ optional one-tap mood. Sessions let the user resume without repeating planning w
 Session **counts are internal fulfillment data, never a user-facing scoreboard** — how
 often the user *chose* an interest is a revealed-interest signal (see Reflection). The
 app never shows raw counts or streaks. **Not** productivity tracking.
-
-### Step _(StructuredLearning interests only)_
-
-An ordered unit of a structured interest's itinerary (e.g. "Module 4: video +
-assignment"), with a title, an optional time estimate, and its own done-state. Steps
-are added **incrementally** — never a mandatory full curriculum upfront. The
-recommendation engine surfaces the *next incomplete Step* and time-fits it. One-time
-and unstructured interests have no Steps.
 
 ### Reflection
 
@@ -377,12 +456,20 @@ genuinely not doable, so it is excluded rather than demoted. `TimeOfDay` and `We
 requirements evaluate against the current `UserContext` exactly like every other
 dimension.
 
-### Structured interests — recommend the next Step
+### Umbrella interests — recommend the next Task
 
-For a `StructuredLearning` interest the unit evaluated is its *next incomplete Step*,
-using that Step's own time estimate: "You have 15 min → your next cyber step is a
-10-min video + 5-min assignment." This turns a broad pursuit into an actionable,
-time-fitted suggestion. One-time and unstructured interests are evaluated as a whole.
+_(revised 2026-08-20, Phase 2.5)_ — for an umbrella Interest the unit evaluated is a
+**Task**, never the umbrella itself, and constraints are read at the effective level
+(the Task's answer, falling back to the umbrella's — see
+[Constraint](#constraint)):
+
+- `StructuredLearning` → the *next incomplete* Task, using that Task's own answers:
+  "You have 15 min → your next cyber step is a 10-min video + 5-min assignment."
+- `UnstructuredLearning` → any *armed* Task: "You have 15 min → practice violin."
+
+`OneTimeProject` interests hold no Tasks and are evaluated as a whole. This turns a
+broad pursuit into an actionable, time-fitted suggestion rather than a vague nudge
+toward something the user cannot directly *do*.
 
 ### v1 scope
 
@@ -414,7 +501,7 @@ interface InterestService {
   create(input: { title: string } & Partial<InterestDetails>): Promise<Interest>;
   get(id: InterestId): Promise<Interest | null>;
   list(filter?: { state?: InterestState; type?: InterestType; query?: string; includeArchived?: boolean }): Promise<Interest[]>;
-  update(id: InterestId, patch: Partial<Pick<Interest, 'title' | 'type' | 'state' | 'archivedAt' | 'typeSkippedAt'>>): Promise<Interest>;
+  update(id: InterestId, patch: Partial<Pick<Interest, 'title' | 'type' | 'state' | 'archivedAt' | 'typeSkippedAt' | 'dueBy'>>): Promise<Interest>;
   setState(id: InterestId, state: InterestState): Promise<Interest>;
   archive(id: InterestId): Promise<Interest>;   // soft-remove (sets archivedAt); delete is a separate hard op
   unarchive(id: InterestId): Promise<Interest>; // clears archivedAt; inverse of archive
@@ -424,7 +511,9 @@ interface InterestService {
 
 interface ConstraintService {                  // added Phase 2 — no screen may call ConstraintRepository directly
   listForInterest(interestId: InterestId): Promise<Constraint[]>; // one entry per stored ConstraintDimension; synthesizes { status: 'Unknown', value: null } for dimensions with no row
-  answer(interestId: InterestId, dimension: ConstraintDimension, input: { status: ConstraintStatus; value?: ConstraintValue }): Promise<Constraint>;
+  listForTask(taskId: TaskId): Promise<Constraint[]>;             // Phase 2.5 — same synthesis, Task-level answers only
+  effectiveForTask(taskId: TaskId): Promise<Constraint[]>;        // Phase 2.5 — per-dimension override: the Task's answer, falling back to its umbrella's. What the engine evaluates.
+  answer(target: { interestId: InterestId } | { taskId: TaskId }, dimension: ConstraintDimension, input: { status: ConstraintStatus; value?: ConstraintValue }): Promise<Constraint>; // Phase 2.5 widened the target from Interest-only
   needsEnrichment(interestIds: InterestId[], dimensions: ConstraintDimension[]): Promise<Set<InterestId>>; // interests among interestIds not fully answered on all given dimensions
 }
 
@@ -457,11 +546,13 @@ interface AnalyticsService {
   highImpactInterests(): Promise<Interest[]>;
 }
 
-interface StepService {                       // StructuredLearning interests only
-  add(interestId: InterestId, step: { title: string; estimateMinutes?: number }): Promise<Step>;
-  reorder(interestId: InterestId, orderedStepIds: StepId[]): Promise<void>;
-  setDone(stepId: StepId, done: boolean): Promise<Step>;
-  nextIncomplete(interestId: InterestId): Promise<Step | null>;
+interface TaskService {                       // Phase 2.5 — umbrella interests only; OneTimeProject has no Tasks. Replaces the sketched StepService.
+  listForInterest(interestId: InterestId): Promise<Task[]>;                  // sequenced: in order; repeatable: user order
+  add(interestId: InterestId, input: { title: string }): Promise<Task>;      // mode is inherited from the parent Interest's type, not passed
+  reorder(interestId: InterestId, orderedTaskIds: TaskId[]): Promise<void>;  // sequenced mode only
+  complete(taskId: TaskId, options?: { rearm?: boolean }): Promise<Task>;    // logs a completion event; rearm (repeatable only) makes the Task actionable again
+  nextActionable(interestId: InterestId): Promise<Task | null>;              // sequenced: next incomplete; repeatable: next armed
+  remove(taskId: TaskId): Promise<void>;
 }
 ```
 
@@ -474,14 +565,24 @@ interface InterestRepository {
   insert(interest: NewInterest): Promise<Interest>;
   findById(id: InterestId): Promise<Interest | null>;
   query(filter: InterestFilter): Promise<Interest[]>;
-  update(id: InterestId, patch: Partial<Interest>): Promise<Interest>;
+  update(id: InterestId, patch: Partial<Pick<Interest, 'title' | 'type' | 'state' | 'archivedAt' | 'typeSkippedAt' | 'dueBy'>>): Promise<Interest>;  // same narrow patch as InterestService.update
   remove(id: InterestId): Promise<void>;
 }
 
 interface ConstraintRepository {
   findForInterest(interestId: InterestId): Promise<Constraint[]>;
+  findForTask(taskId: TaskId): Promise<Constraint[]>;                                    // Phase 2.5
   replaceForInterest(interestId: InterestId, constraints: Constraint[]): Promise<void>; // per-dimension upsert; dimensions absent from the call are left untouched, not a wipe-and-reinsert
+  replaceForTask(taskId: TaskId, constraints: Constraint[]): Promise<void>;              // Phase 2.5 — same per-dimension upsert semantics
   findFullyAnsweredInterestIds(interestIds: InterestId[], dimensions: ConstraintDimension[]): Promise<Set<InterestId>>; // added Phase 2 — bulk check to avoid N+1 queries
+}
+
+interface TaskRepository {                                                               // Phase 2.5
+  findForInterest(interestId: InterestId): Promise<Task[]>;                              // ordered by position
+  insert(task: NewTask): Promise<Task>;
+  update(id: TaskId, patch: Partial<Pick<Task, 'title' | 'position' | 'state'>>): Promise<Task>;
+  logCompletion(id: TaskId, completedAt: string, rearm: boolean): Promise<Task>;         // appends a completion event; rearm restores actionability (repeatable only)
+  remove(id: TaskId): Promise<void>;
 }
 
 interface NoteRepository {
@@ -516,10 +617,11 @@ domain, and persistence and delivers a complete, usable feature.
 | **0** | Foundation | Expo + RN + TypeScript project, ESLint/Prettier, navigation, design system/theming, SQLite + migrations, repository infra, logging, testing framework. Runnable shell that initializes the DB. |
 | **1** | Interest Backlog (MVP) | Create (title only), list, view, edit, archive/delete, search, filter by state. A usable personal backlog. |
 | **2** | Guided Interest Setup | Optionally enrich interests: type, time/location/supplies/social/weather+seasonal requirements via a card-based flow. Energy/focus is modeled and stored but has no question card until a later phase. All fields optional. |
-| **3** | Recommendation Engine (v1) | Deterministic feasibility filter (load candidates → evaluate per-dimension: hard blocks exclude, soft blocks warn → order feasibility-first → return). Request recommendations from current circumstances. |
-| **4** | Sessions | Start/end session, record duration, optional notes. |
-| **5** | Reflections | Fulfillment, satisfaction, mood, would-do-again, notes. |
-| **6** | Impact Reflections | Delayed reflections; lasting impact associated with completed interests. |
+| **2.5** | Interest Shapes (Tasks) | Remodel the three types into three genuinely different container shapes. Adds the `Task` entity (`repeatable` / `sequenced`), derives type from behavioral answers instead of asking it, replaces the single guided-setup flow with a **per-type** flow, moves constraints to whichever level the type implies, and adds Task completion with re-arm. Replaces the sketched `Step` entity. **Blocks Phase 3.** |
+| **3** | Recommendation Engine (v1) | Deterministic feasibility filter (load candidates → evaluate per-dimension: hard blocks exclude, soft blocks warn → order feasibility-first → return). Request recommendations from current circumstances. Candidates are **Tasks** for umbrella interests and the **Interest itself** for `OneTimeProject`; constraints are evaluated at the effective (Task-then-umbrella) level. |
+| **4** | Sessions | Start/end session, record duration, optional notes. A session attaches to the **Task** where one exists, and to the Interest for `OneTimeProject`. |
+| **5** | Reflections | Fulfillment, satisfaction, mood, would-do-again, notes. Offered on **any** completion — Task or Interest — and never required. |
+| **6** | Impact Reflections | Delayed reflections; lasting impact associated with completed interests. Concluding an umbrella is now a real, meaningful moment, so impact capture has a natural trigger for interests that never "finish." |
 | **7** | Dashboard & Analytics | In-progress interests, fulfillment trends, high-impact interests, fulfillment by category, recommendation entry point, reflection summaries. Descriptive, not prescriptive. |
 | **8** | Polish | Search/perf improvements, empty states, accessibility, animations, import/export, backup workflows, UX polish. Version 1 release. |
 
@@ -543,6 +645,39 @@ design tokens. Read it before expanding Phases 0, 2, 3, and 5–7 into tickets.
 
 ## Resolved Decisions
 
+- **The three Interest types are three container shapes, not one shape with three
+  labels** _(2026-08-20, Phase 2.5)_ — raised after Phase 2 UAT, where the types read as
+  "three different kinds of thing bundled into the same questionnaire and data box and
+  slapped with a label to differentiate them." `OneTimeProject` *is* its own unit of
+  work; `UnstructuredLearning` and `StructuredLearning` are **umbrellas** over `Task`
+  children — repeatable and unordered for the former, sequenced and finite for the
+  latter. One `Task` entity with two modes, not two entities; `Step` becomes the
+  `sequenced` mode. Completion moves **down** to the Task, which makes guilt-free
+  Conclude/Resting structural instead of special-case copy. `OneTimeProject`
+  deliberately has **no** Tasks — forcing uniformity onto all three types is the
+  original error in the opposite direction. See [Domain Model](#domain-model).
+- **Type is derived from behavioral answers, never asked** _(2026-08-20, Phase 2.5)_ —
+  asking "is this a one-time project?" makes the user do the app's classifying for it,
+  inverting the product's whole purpose. Two behavioral questions ("can this be finished
+  in one sitting?", "is there a set order of steps to get there?") determine the type,
+  which is stored as a consequence. Type therefore stops being a free-standing editable
+  field, and `typeSkippedAt` simplifies: there is nothing to skip, only not-yet-enough
+  answered to determine it.
+- **The guided flow is per-type, not one flow with a branch** _(2026-08-20, Phase 2.5)_
+  — a single questionnaire serving all three shapes forces a choice between asking every
+  axis at both the umbrella and Task level (a 30-plus-question flow that destroys the
+  low-friction goal) and asking umbrella-level questions that read as incoherent for an
+  umbrella ("how long does *Learn the Violin* take?"). Both problems are artifacts of the
+  uniform flow, not of the model. Each type gets a flow shaped to it: a Cutting answers
+  the axes directly, an Evergreen captures Tasks and answers axes per Task, a Trellis
+  captures ordered Tasks and answers axes once at the umbrella. Shared cards still exist;
+  the *structure* differs.
+- **Constraint level is a property of the type** _(2026-08-20, Phase 2.5)_ — constraints
+  attach to an Interest or a Task, resolved by **per-dimension override** (Task's answer,
+  falling back to the umbrella's) with no merge or union semantics anywhere. Where the
+  answers live differs per type by design; a Task needing the umbrella's answer plus one
+  more item is handled by **pre-filling the editor**, not by a merge rule. See
+  [Domain Model](#domain-model).
 - **Recommendation is a feasibility filter, not a preference model** _(2026-07-16)_ —
   the engine surfaces backlog interests that are actionable right now and never uses
   historical fulfillment, reflections, or analytics to rank or hide them. See
@@ -587,14 +722,19 @@ design tokens. Read it before expanding Phases 0, 2, 3, and 5–7 into tickets.
 - **Archive = soft-delete flag** _(2026-07-16)_ — `archivedAt` timestamp, orthogonal
   to the `Backlog/InProgress/Complete` lifecycle; archived interests are hidden from
   default views but recoverable. Delete is a separate, permanent hard removal.
-- **Steps for structured interests — un-defers Milestones** _(2026-07-16)_ — a `Step`
-  entity models the itinerary of `StructuredLearning` interests (ordered, incrementally
-  added, own done-state); the engine recommends the next Step. One-time and unstructured
-  interests have no Steps. This narrowly reverses the earlier deferral — the
-  cybersecurity-cert case showed Sessions alone can't represent a curriculum.
-- **Per-type shape & completion** _(2026-07-16)_ — one-time = user marks done;
-  unstructured = guilt-free Conclude/Resting (never "finished"); structured = Steps done
-  or user declares. Always user-declared, never auto-forced.
+- **Steps for structured interests — un-defers Milestones** _(2026-07-16; superseded
+  2026-08-20)_ — a `Step` entity models the itinerary of `StructuredLearning` interests
+  (ordered, incrementally added, own done-state); the engine recommends the next Step.
+  This narrowly reversed the earlier deferral — the cybersecurity-cert case showed
+  Sessions alone can't represent a curriculum. **Superseded by Phase 2.5:** the insight
+  holds, but `Step` is now the `sequenced` mode of `Task` rather than its own entity,
+  since `UnstructuredLearning` needs the same child-of-an-umbrella structure with
+  different child behavior.
+- **Per-type shape & completion** _(2026-07-16; revised 2026-08-20)_ — one-time = user
+  marks done; unstructured = guilt-free Conclude/Resting (never "finished"); structured
+  = Tasks done or user declares. Always user-declared, never auto-forced. **Revised by
+  Phase 2.5:** completion moves down to the Task for both umbrella types, so
+  Conclude/Resting is now a structural consequence rather than special-case copy.
 - **Fulfillment = stated + revealed, both internal** _(2026-07-16)_ — the fulfillment
   review draws on self-reported reflections *and* how often the user chose an interest
   (revealed interest, derived from Sessions). Engagement is captured frictionlessly at
@@ -645,17 +785,20 @@ design tokens. Read it before expanding Phases 0, 2, 3, and 5–7 into tickets.
 - **What counts as "choosing"** — the exact interaction recorded as a Session (acting on
   a recommendation or an explicit "start" vs. merely opening details), so
   revealed-interest data isn't inflated by browsing. Settle when Sessions land (Phase 4).
-- **Which phase owns the `Step` entity, and which phase owns type-specific
-  Interest behavior** — Phase 1's plan placed `Step` in "Phase 2" in passing,
-  but neither the roadmap's Phase 2 cell text nor the Phase 2 phase plan builds
-  it, and Phase 3's recommendation engine needs a `Step` to recommend the next
-  incomplete Step for `StructuredLearning` interests. Related: Phase 2 lets the
-  user set `Interest.type` but implements no type-specific behavior (no-ceremony
-  Complete for `OneTimeProject`, guilt-free Conclude/Resting for
-  `UnstructuredLearning`, Steps-based completion for `StructuredLearning`, per
-  the design-intent doc's "Interest Shapes & Structured Itineraries" section).
-  Both gaps are likely owned by the same phase; resolve together before
-  Phase 3 is planned.
+- **Type display names** — `Cuttings` / `Trellises` / `Evergreens` (the garden-metaphor
+  labels surfaced by `displayLabel`) still read awkwardly, particularly the latter two.
+  The underlying `InterestType` identifiers and the Phase 2.5 container shapes are
+  settled and are **not** blocked on this; only the user-facing wording is open. Revisit
+  once the per-type flows have been used in anger — the right names are likelier to be
+  obvious after the shapes are real than before.
+- **Task state model** — the precise state a `Task` carries (done / not-done for
+  `sequenced`; armed / completed-count for `repeatable`), and whether completing an
+  Interest's first Task should flip the umbrella from `Backlog` to `InProgress`
+  automatically or leave it to the user. Settle during Phase 2.5 planning.
+- **Task-level enrichment timing** — Task constraints are answered lazily rather than in
+  the setup flow (see Phase 2.5's per-type flows), but the exact trigger — on demand when
+  editing a Task, via the just-in-time enrichment pattern, or both — is unsettled.
+  Settle during Phase 2.5 planning.
 
 ---
 

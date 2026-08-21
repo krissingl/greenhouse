@@ -1,6 +1,21 @@
 # Greenhouse System Architecture
 
-> **Historical planning document — superseded by [`spec/PROJECT_SPEC.md`](../spec/PROJECT_SPEC.md) as the single source of truth.** Frozen; do not edit for current truth.
+> **HISTORICAL — DO NOT USE AS CURRENT TRUTH.**
+> Superseded by [`spec/PROJECT_SPEC.md`](../spec/PROJECT_SPEC.md). Frozen 2026-07-16;
+> its contents were merged into the spec at that time and are not maintained here.
+>
+> **Mostly still directionally right, narrowly stale.** The layering rules (presentation
+> → application → domain → persistence), local-first posture, and type-safety principles
+> below are unchanged and match the spec.
+>
+> **Known stale as of 2026-08-20 (Phase 2.5):** the recommendation pipeline described
+> under "Processing Pipeline" and "Requesting Recommendations" loads *candidate
+> Interests*. For umbrella interests the candidate is now a **`Task`**, not the Interest.
+> The entity lists also omit `Task` and `Note` entirely.
+>
+> **Do not cite this document for domain-model or recommendation questions.** For
+> layering and architecture it is a reasonable read, but the spec's Architecture section
+> is authoritative.
 
 ## Document Status
 
